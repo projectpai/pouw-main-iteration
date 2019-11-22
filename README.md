@@ -7,8 +7,8 @@ This is only for testing and debugging purposes.
     
     Otherwise, if you start from scratch, please clone the `pouw-adjustable-difficulty` branch of paicoin and the `distributed branch` of the Python project:
     ~~~~
-    git clone -b "pouw-q2" --single-branch https://github.com/projectpai/paicoin.git
-    git clone -b "k8s" --single-branch http://gitlab.int.oben.me/pouw/main-iteration.git
+    git clone -b "pouw-q4" --single-branch https://github.com/projectpai/paicoin.git
+    git clone -b "master" --single-branch http://gitlab.int.oben.me/pouw/main-iteration.git
     ~~~~
 
 2. You can skip this step if you have `protobuf 3.6` installed. This is how it is installed using Homebrew:
