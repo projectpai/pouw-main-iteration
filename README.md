@@ -8,7 +8,7 @@ This is only for testing and debugging purposes.
     Otherwise, if you start from scratch, please clone the `pouw-adjustable-difficulty` branch of paicoin and the `distributed branch` of the Python project:
     ~~~~
     git clone -b "pouw-q4" --single-branch https://github.com/projectpai/paicoin.git
-    git clone -b "master" --single-branch http://gitlab.int.oben.me/pouw/main-iteration.git
+    git clone -b "master" --single-branch https://github.com/projectpai/pouw-main-iteration
     ~~~~
 
 2. You can skip this step if you have `protobuf 3.6` installed. This is how it is installed using Homebrew:
@@ -67,12 +67,12 @@ The file paicoin.conf should have the following content:
 8. Switch to the Python code and install the ML trainer:
     ~~~~
     cd ../../main-iteration/
-    python setup.py develop
+    python3 setup.py develop
     ~~~~
 
 9. Start the verification server:
     ~~~~
-    python pai/pouw/verification/server.py
+    python3 pai/pouw/verification/server.py
     ~~~~
 
 10. Start the *paicoind* process:
@@ -84,12 +84,12 @@ The file paicoin.conf should have the following content:
 11. Start the cluster with 3 nodes:
     ~~~~
     cd ../../../main-iteration/
-    python pai/pouw/start_cluster.py --nodes-number 3
+    python3 pai/pouw/start_cluster.py --nodes-number 3
     ~~~~
 
 12. Run the client that starts the training process:
     ~~~~
-    python pai/pouw/nodes/client.py --client-task-definition-path=../../client-task-definition.yaml
+    python3 pai/pouw/nodes/client.py --client-task-definition-path=../../client-task-definition.yaml
     ~~~~
     
 13. You can open a new Terminal and check with `paicoin-cli` the blockchain status. E.g.:
