@@ -1,0 +1,39 @@
+FROM ubuntu:16.04
+MAINTAINER Constantin Yannuk <constantin.yannuk@upandrunningsoftware.com>
+
+RUN mkdir /mxnet-dist
+
+RUN apt-get update -y -q && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y wget build-essential git-core ninja-build chrpath cmake libopenblas-dev liblapack-dev python-dev zip unzip && \
+    apt-get clean && \
+    wget -qO- https://bootstrap.pypa.io/get-pip.py | python
+
+CMD git clone --branch $VERSION https://github.com/apache/incubator-mxnet && cd incubator-mxnet && \
+    git submodule update --init -- 3rdparty/dlpack 3rdparty/dmlc-core 3rdparty/googletest 3rdparty/mkldnn 3rdparty/mshadow 3rdparty/tvm && \
+    pip install -r docs/install/requirements.txt && \
+    mkdir build && cd build && cmake -GNinja \
+     -DBUILD_CPP_EXAMPLES=OFF \
+     -DCMAKE_CXX_FLAGS="-Wno-unused-local-typedefs" \
+     -DUSE_CUDA=OFF \
+     -DUSE_CUDNN=OFF \
+     -DUSE_JEMALLOC=OFF \
+     -DUSE_OPENMP=ON \
+     -DUSE_MKL_IF_AVAILABLE=OFF \
+     -DUSE_MKLDNN=OFF \
+     -DBLAS=Open \
+     -DUSE_LAPACK=ON \
+     -DUSE_OPENCV=OFF \
+     -Dmxnet_LINKER_LIBS="-l:libopenblas.a -l:liblapack.a -lgfortran" \
+     -DCMAKE_BUILD_TYPE=Release .. && \
+     ninja -j $(nproc) && \
+     strip -s libmxnet.so && chrpath -d libmxnet.so && \
+     cd ../python && python setup.py bdist_wheel --universal --plat-name=manylinux1_x86_64 && \
+     WHEEL=`readlink -f dist/*.whl` && \
+     TMPDIR=`mktemp -d` && \
+     unzip -d ${TMPDIR} ${WHEEL} && \
+     rm ${WHEEL} && \
+     cd ${TMPDIR} && \
+     mv *.data/data/mxnet/libmxnet.so mxnet && \
+     rm -rf *.data && \
+     zip -r ${WHEEL} . && \
+     cp ${WHEEL} /mxnet-dist/

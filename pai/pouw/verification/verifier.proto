@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package pai.pouw.verification;
+
+
+// definition of verifier service
+service Verifier {
+    rpc Verify (Request) returns (Response) {}
+}
+
+
+// Request message
+message Request {
+    string msg_history_id = 1; // the id/hash of the message history chunk in which the lucky nonce was generated
+    string msg_id = 2; // the id/hash of the message
+    uint32 nonce = 3; // the nonce that is supposed to be checked against
+    string block_header = 4; // the block header
+}
+
+// Response message
+message Response {
+    enum ReturnCode {
+        GENERAL_ERROR = 0; // this is unused, but must be provided for compatibility issues with proto2
+        OK = 200; // this message confirms that the verification was successful
+        BAD_REQUEST = 400; // returned when one of the VerificationRequest components is not provided or incorrectly provided
+        NOT_FOUND = 404; // returned when all parameters all correctly provided, however either the messages or files stored as proof were not found
+        INVALID = 422; // returned when the reproduction of computation in the iteration fails
+    }
+    ReturnCode code = 1; // the code of the response
+    string description = 2; // a comprehensive description of the response
+}

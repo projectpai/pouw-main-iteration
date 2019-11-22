@@ -1,0 +1,15 @@
+blspy
+botocore
+merkletools
+requests
+grpcio
+protobuf
+livestats
+mxnet
+numpy
+redis==2.10.6
+pyyaml==3.12
+bitcoin-python
+base58
+mock
+python-bitcoinrpc
