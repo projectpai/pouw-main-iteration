@@ -1,7 +1,8 @@
+urllib3==1.21.1
 blspy
 botocore
 merkletools
-requests
+requests==2.20.0
 grpcio
 protobuf
 livestats
