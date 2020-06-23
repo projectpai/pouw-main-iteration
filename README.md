@@ -1,27 +1,31 @@
 ## How to run PoUW locally on your computer
+#### in 10 simple steps
 
-This setup assumes you will be running a local paicoin node and two ML miners (on the same machine).
-This is only for testing and debugging purposes.
+This setup assumes you will be running a local PAICoin node and three ML miners (on the same machine).
+This should be used for testing and debugging purposes.
 
-1. If you already have the sources, please update to the latest version. 
-    
-    Otherwise, if you start from scratch, please clone the `pouw-adjustable-difficulty` branch of paicoin and the `distributed branch` of the Python project:
+### MacOS via Homebrew
+
+1. Let's clone the PAICoin PoUW branch and the ML trainer extension by running the following commands:
     ~~~~
     git clone -b "pouw-q4" --single-branch https://github.com/projectpai/paicoin.git
-    git clone -b "master" --single-branch https://github.com/projectpai/pouw-main-iteration
+    
+    git clone https://github.com/projectpai/pouw-main-iteration
     ~~~~
 
-2. You can skip this step if you have `protobuf 3.6` installed. This is how it is installed using Homebrew:
-
+2. Install the prerequisites to build the PAICoin code and to run the ML trainer extension:
     ~~~
-    brew install protobuf@3.6
-    brew link --force protobuf@3.6
+    brew install automake berkeley-db4 libtool boost miniupnpc pkg-config python qt libevent qrencode zmq
+    
+    brew install python3 grpc
     ~~~
 
-3. If paicoin is already setup, delete the `testnet3` directory from `~/Application Support/PAIcoin/` if you are on a Mac (or the corresponding folder from Linux).
-
-4. If this is the first time you set up the local testing environment, please copy the configuration files from `http://gitlab.int.oben.me/devops/pouw-docker/tree/master/configs` to `~/Application Support/PAIcoin/`.
-The file paicoin.conf should have the following content:
+3. Create a directory `~/Application\ Support/PAIcoin/` where we will add two configuration files:
+```
+mkdir ~/Library/Application\ Support/PAIcoin/
+cd ~/Library/Application\ Support/PAIcoin/
+```
+4. We'll place here a file called` paicoin.conf` that has the following content:
     ~~~
     server=1
     bantime=1
@@ -42,62 +46,102 @@ The file paicoin.conf should have the following content:
     connect=0
     ignore-not-connected=1
     dnsseed=0
-
     ~~~
 
-5. Configure the PAIcoin build by running:
+5. We'll add another file called `chainparams.conf` with this content:
+```
+GENESIS_BLOCK_TIME = 5
+GENESIS_BLOCK_REWARD = 1470000000
+INITIAL_BLOCK_REWARD = 150
+BLOCK_TIME = 5
+
+TESTNET_CONSENSUS_POW_LIMIT = 01ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+TESTNET_GENESIS_BLOCK_POW_BITS = 20
+TESTNET_GENESIS_BLOCK_NBITS = 0x2001ffff
+TESTNET_GENESIS_BLOCK_SIGNATURE = 9a8abac6c3d97d37d627e6ebcaf68be72275168b
+TESTNET_GENESIS_BLOCK_UNIX_TIMESTAMP = 1546300800
+
+TESTNET_PUBKEY_ADDRESS = 51
+TESTNET_SCRIPT_ADDRESS = 180
+TESTNET_SECRET_KEY = 226
+
+TESTNET_MAGIC_BYTE_0 = 11
+TESTNET_MAGIC_BYTE_1 = 9
+TESTNET_MAGIC_BYTE_2 = 17
+TESTNET_MAGIC_BYTE_3 = 7
+
+TESTNET_PORT = 18567
+TESTNET_RPC_PORT = 18566
+
+TESTNET_SEED_0 =
+TESTNET_SEED_1 =
+TESTNET_SEED_2 =
+```
+
+6. Now we'll switch back to where we cloned the two repositories and we'll build the the PAIcoin blockchain part by running:
     ~~~~
     cd paicoin/
+
     ./autogen.sh
+
     ./configure --with-gui=no --disable-tests --disable-bench --enable-chainparams-conf
-    ~~~~
-    
-6. Build the code:
 
-    ~~~~
-    make -j5
+    make -j $(sysctl -n hw.physicalcpu) 
     ~~~~
 
-7. Create the genesis block.
+7. We'll create the genesis block.
     ~~~~
     cd src/
+
     ./paicoind -mine-genesis-block
     ~~~~
 
-8. Switch to the Python code and install the ML trainer:
+8. Now, we switch to the Python code and install the ML trainer:
     ~~~~
-    cd ../../main-iteration/
+    cd ../../pouw-main-iteration/
+
     python3 setup.py develop
     ~~~~
 
-9. Start the verification server:
+9. Now, it's already time to run the system.
+* Start the verification server, so we type:
     ~~~~
     python3 pai/pouw/verification/server.py
     ~~~~
 
-10. Start the *paicoind* process:
+* In another terminal, we start the *paicoind* process, therefore from the original directory where we initially cloned the repos, we run this:
     ~~~~
-    cd ../../paicoin/src/
+    cd paicoin/src/
+
     ./paicoind -ignore-not-connected
     ~~~~
 
-11. Start the cluster with 3 nodes:
+* We start another terminal in the initial clone directory and we'll start the ML training cluster with 3 nodes:
     ~~~~
-    cd ../../../main-iteration/
+    cd pouw-main-iteration/
+
     python3 pai/pouw/start_cluster.py --nodes-number 3
     ~~~~
+    ![ML training](img/run-miner.png)
 
-12. Run the client that starts the training process:
+* From another terminal we run the client that starts the training process. The output should be similar to this window during the whole process:
     ~~~~
-    python3 pai/pouw/nodes/client.py --client-task-definition-path=../../client-task-definition.yaml
+    cd pouw-main-iteration/
+
+    python3 pai/pouw/nodes/decentralized/client.py --client-task-definition-path=pai/pouw/client-task-definition.yaml
     ~~~~
+    ![Client](img/run-client.png)
+* In the blockchain window, when blocks are added we can see an output like this:
+![PAICoin](img/run-paicoin.png)
     
-13. You can open a new Terminal and check with `paicoin-cli` the blockchain status. E.g.:
-    ~~~~
-    cd ../../paicoin/src/
+10. Let's check the results:
+* You can open a new Terminal and check with `paicoin-cli` the blockchain status:
+    ```
+    cd paicoin/src/
+
     ./paicoin-cli --rpcuser=paicoin --rpcpassword=10050021 --rpcport=4002 getmininginfo
-    ~~~~
-    
-14. While the mining and training is taking place, you can see the verification process in the output window of `server.py`,
-while the training/mining status can be checked in the output window of `start_cluster.py`.
+    ```
+    ![Get mining status](img/getmininginfo.png)
+* While the mining and training is taking place, you can see the verifications in the output window of `server.py`:
+    ![Server verification](img/run-verifier.png).
 
