@@ -1,5 +1,5 @@
 # Proof of Useful Work
-![Python](https://upload.wikimedia.org/wikipedia/commons/f/fc/Blue_Python_3.7_Shield_Badge.svg) ![License: MIT](https://img.shields.io/badge/License-MIT-green.svg) [![Maintainability](https://api.codeclimate.com/v1/badges/6c386e3b5e6f45258db1/maintainability)](https://codeclimate.com/github/projectpai/pouw-main-iteration/maintainability) 
+![Python](https://upload.wikimedia.org/wikipedia/commons/f/fc/Blue_Python_3.7_Shield_Badge.svg) ![License: MIT](https://img.shields.io/badge/License-MIT-green.svg) [![Known Vulnerabilities](https://snyk.io/test/github/projectpai/pouw-main-iteration/badge.svg?targetFile=requirements.txt)](https://snyk.io/test/github/projectpai/pouw-main-iteration?targetFile=requirements.txt) [![Maintainability](https://api.codeclimate.com/v1/badges/6c386e3b5e6f45258db1/maintainability)](https://codeclimate.com/github/projectpai/pouw-main-iteration/maintainability)
 
 
 ## How to run PoUW locally on your computer
