@@ -1,3 +1,7 @@
+# Proof of Useful Work
+![Python](https://upload.wikimedia.org/wikipedia/commons/f/fc/Blue_Python_3.7_Shield_Badge.svg) ![License: MIT](https://img.shields.io/badge/License-MIT-green.svg) [![Maintainability](https://api.codeclimate.com/v1/badges/6c386e3b5e6f45258db1/maintainability)](https://codeclimate.com/github/projectpai/pouw-main-iteration/maintainability) 
+
+
 ## How to run PoUW locally on your computer
 #### in 10 simple steps
 
@@ -93,6 +97,8 @@ This should be used for testing and debugging purposes.
 8. Now, we switch to the Python code and install the ML trainer:
     ~~~~zsh
     cd ../../pouw-main-iteration/
+    pip3 install -r requirements.txt
+    pip3 install -U setuptools
     python3 setup.py develop
     ~~~~
 
