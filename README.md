@@ -1,14 +1,48 @@
 # Proof of Useful Work
 ![Python](https://upload.wikimedia.org/wikipedia/commons/f/fc/Blue_Python_3.7_Shield_Badge.svg) ![License: MIT](https://img.shields.io/badge/License-MIT-green.svg) [![Known Vulnerabilities](https://snyk.io/test/github/projectpai/pouw-main-iteration/badge.svg?targetFile=requirements.txt)](https://snyk.io/test/github/projectpai/pouw-main-iteration?targetFile=requirements.txt) [![Maintainability](https://api.codeclimate.com/v1/badges/6c386e3b5e6f45258db1/maintainability)](https://codeclimate.com/github/projectpai/pouw-main-iteration/maintainability)
 
+Proof of Useful Work (PoUW) is a novel blockchain platform with a new type of user, that is additional to the typical blockchain transactor: the requestor. This paradigm shift has a dual purpose: we provide a typical cryptocurrency with the added benefit of a computational platform at an affordable price.
 
-## How to run PoUW locally on your computer
-#### in 10 simple steps
+Our requestor model is using machine learning as useful computation. The work is distributed among worker nodes and verifiers. A client (the requestor) can submit a machine learning task along with preferences, the worker nodes are matched to the task, miners train and mine with nonces derived from the ML processing, and at end they are paid from the client's fee. All interactions are sent as special transactions into the blockchain, so they can be later verified.
 
-This setup assumes you will be running a local PAICoin node and three ML miners (on the same machine).
+**PoUW** can be run on **Mac OS X** and **Linux**, but also on derived systems such as **Docker** or **Kubernetes**.
+![PAICoin](img/docker.png)
+
+## First look
+When blocks are successfully mined we can see an output like this in the PAI blockchain server window:
+![PAICoin](img/run-paicoin.gif)
+
+Meanwhile, the ML training process takes place at a faster pace inside the miner nodes.
+![ML training](img/run-miner.png)
+
+## Contents
+
+1. [Quickstart](#Quickstart)
+    * [Elements](#Elements)
+    * [MacOS&nbsp;via&nbsp;Homebrew](#MacOSviaHomebrew)
+2. [How it works](#Howitworks)
+    * [Actors](#actors)
+    * [Workflow](#Workflow)
+    * [ML Training](#ml-training)
+    * [Rewarding useful work](#rewarding-useful-work)
+    * [No client tasks?](#no-client-tasks)
+    * [Staking](#staking)
+    * [Mining](#mining)
+3. [How to make money](#How-to-make-money)
+4. [Try it yourself!](#Try-it-yourself)
+5. [License](#license)
+
+## Quickstart
+Here is how to run PoUW locally in just 10 simple steps.
+### Elements
+- **paicoind** is the PAICoin server binary
+- **verification/server.py** is the PAICoin server extension that re-runs and verifies ML iterations when a lucky nonce is found by a miner
+- **worker.py** contains the mining and training code executed by a miner; **start_cluster.py** is calling it to simulate several miners on the same machine
+- **client.py** is the client code that triggers the training and mining processes.
+
+### MacOS&nbsp;via&nbsp;Homebrew
+This setup assumes you will be running a local PAICoin node and three ML miners (on the same Apple machine).
 This should be used for testing and debugging purposes.
-
-### MacOS via Homebrew
 
 1. Let's clone the PAICoin PoUW branch and the ML trainer extension by running the following commands:
     ~~~~zsh
@@ -119,7 +153,6 @@ This should be used for testing and debugging purposes.
     cd pouw-main-iteration/
     python3 pai/pouw/start_cluster.py --nodes-number 3
     ~~~~
-    ![ML training](img/run-miner.png)
 
 * From another terminal we run the client that starts the training process. The output should be similar to this window during the whole process:
     ~~~~zsh
@@ -127,8 +160,6 @@ This should be used for testing and debugging purposes.
     python3 pai/pouw/nodes/decentralized/client.py --client-task-definition-path=pai/pouw/client-task-definition.yaml
     ~~~~
     ![Client](img/run-client.png)
-* In the blockchain window, when blocks are added we can see an output like this:
-![PAICoin](img/run-paicoin.gif)
     
 10. Let's check the results:
 * You can open a new Terminal and check with `paicoin-cli` the blockchain status:
@@ -140,3 +171,60 @@ This should be used for testing and debugging purposes.
 * While the mining and training is taking place, you can see the verifications in the output window of `server.py`:
     ![Server verification](img/run-verifier.png).
 
+## How&nbsp;it&nbsp;works
+The environment is the PAI (Personalised Artificial Intelligence) blockchain, a hybrid Proof of Work/Proof of Stake (PoW/PoS) blockchain. It is a P2P decentralised network composed of various actor types to ensure security.
+
+### Actors
+![Actors](img/actors.png)
+The system has 6 types of actors:
+- clients
+- miners
+- supervisors
+- evaluators
+- verifiers
+- peers
+
+Clients are interested to have their models trained a good price, miners perform the actual training, supervisors log the ML task activity and audit for malicious behaviour, evaluators decide how to split the client's fee, verifiers do delegated verification when a miner finds a lucky nonce and peers are regular transactors.
+
+### Workflow
+Here is a typical task workflow:
+![Workflow](img/workflow.png)
+In the first phase, called __Registration__, a client submits a ML task and miners and supervisors are assigned automatically based on a matching algorithm. Then in the __Initialisation__ phase, the worker nodes exchange their cryptographic keys with each other, the client shares the training data and this data is prepared for training and stored on the worker nodes. Data is split into very small batches, each batch will be processed in an iteration. During the next phase, __Training__, miners will perform the distributed machine learning training. When a miner finishes to process an iteration (there can be thousands, millions of iterations), it is allowed to try to mine with a nonce obtained from specifics of that iteration. If it finds a lucky nonce, it will hand over the inputs and the data to several verifiers, who can certify that the nonce was obtained correctly. During this time, supervisors audit the whole training process. In the __Finalisation__ phase, our protocol will pick up a set of evaluators, who decide how to split the client's fee.
+
+### ML Training
+We use an asynchronous ML training algorithm. The whole training dataset is split into small pieces, called batches. These pieces are given to miners to process. Every miner has a set of its own batches to process in a predetermined order. At the same time, every miner also has a copy of the ML model. At every iteration, it processes a batch, updates its model and tells the other miners what changes it applied to its model. The other miners listen to these kinds of messages and update their own models with these changes, while also performing their own work.
+
+![Iteration](img/ml-iteration.png)
+During a ML iteration the miner receives gradient updates and applies them to its local model, then loads its assigned mini-batch for this iteration. Then it’s the usual backpropagation, after which we obtain gradients. To minimize the sent data, we send only significant values for gradients. We use an accumulation scheme: we keep a gradient residual and everything that exceeds a threshold is encoded in a map, applied to the local model and announced over the network. Eventually, all changes to gradients are applied to the local model with a delay. After this is done, the miner is allowed to mine.
+
+### Rewarding useful work
+At the end of the training, a number of evaluators are selected, they are provided with the models from each miner and the test dataset from the client. Very important: nobody sees the client dataset until this stage. Evaluators just test the models on the test dataset and decide how to split the client’s money across the ML training participants, that include the miners, supervisors, and evaluators themselves. Then, the best model is handed to the final beneficiary, which is the client, the requestor.
+![Iteration](img/rewarding.png)
+
+You might ask yourself: Is this feasible in practice? Yes. I would like to mention that we tested ML task groups of up to 80 participants that still converged to a good solution with this distributed setup.
+
+### No client tasks?
+What happens when there are times when no requestor asks for computation? We have fill-in tasks designed by Project PAI, such as protein folding, that can be solved using ML. Once defined, we can add here computational tasks that could help with finding a cure or vaccine to Covid-19 and so on. The model architecture and parameters are randomly generated, so there are no repeat-jobs.
+
+### Staking
+How about bad behaviour, cheating, doing cheap work? There are two protections in place: the architecture of the system and staking. We ensure good behaviour using staking. All nodes stake coins to participate. If they do proper work, stakes are returned, otherwise they are confiscated and added to the task fee and redistributed to honest actors at the end of training. Staking is our first differentiator. This makes our platform different from others.
+
+### Mining
+![Mining](img/mining.png)
+Our second differentiator is the ML-based mining. We enforce useful work by linking mining to AI-work. Every nonce is restricted to a value that can only be obtained after executing a ML iteration. Without getting into very technical details, a nonce is deterministically derived from the model state at the end of the iteration and the gradients applied during iteration. A miner is allowed to try an interval of nonces based on model complexity and batch size.
+
+## How to make money
+All participants benefit from PoUW. 
+- Miners have 2 income sources:
+    - paid by client in a descending order based on the final model metrics
+    - from actual mining.
+
+- Supervisors and evaluators get an equal share from a quota of the client share.
+- Verifiers are paid by miners, clients have lower computation costs
+- Peers win by holding PAI-Coin as a long-term investment.
+
+## Try it yourself!
+We have done significant work in regards to bringing this idea to reality. We also have a comprehensive Kubernetes tutorial at https://github.com/projectpai/pouw-k8s, that you can follow and deploy a network of PoUW nodes on your local computer. You can clone the repositories, explore the code, build and run the implementations, modify the code, submit your proposals and become a PoUW contributor!
+
+## License
+PoUW is distributed under the [MIT License](LICENSE).
