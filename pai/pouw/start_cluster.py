@@ -21,11 +21,13 @@ def main():
                         help='Redis port used for connecting to redis database')
     parser.add_argument('--use-paicoin', type=strtobool, default=True,
                         help='enable/disable usage of paicoin for testing and debugging purposes')
+    parser.add_argument('--python-interpreter', type=str, default='python3',
+                        help='name of Python executable')
 
     args = parser.parse_args()
 
     worker_args = [(args.debug, args.cuda, args.use_paicoin,
-                    args.redis_host, args.redis_port)
+                    args.redis_host, args.redis_port, args.python_interpreter)
                    for _ in range(args.nodes_number)]
 
     pool = Pool(processes=args.nodes_number)
@@ -36,13 +38,13 @@ def call_wrapper(args):
     return call_worker(*args)
 
 
-def call_worker(is_debug=False, cuda=False, use_paicoin=True, redis_host='localhost', redis_port=6379):
+def call_worker(is_debug=False, cuda=False, use_paicoin=True, redis_host='localhost', redis_port=6379, python_interpreter='python3'):
     worker_script_path = pai.pouw.nodes.decentralized.worker.__file__
     # in order to ensure debugger is working properly
     if worker_script_path.endswith('pyc'):
         worker_script_path = worker_script_path[:-1]
 
-    script_parameters = ['python3', worker_script_path,
+    script_parameters = [python_interpreter, worker_script_path,
                          '--redis-host', redis_host,
                          '--redis-port', str(redis_port),
                          '--use-paicoin', str(use_paicoin),

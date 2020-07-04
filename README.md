@@ -20,6 +20,7 @@ Meanwhile, the ML training process takes place at a faster pace inside the miner
 1. [Quickstart](#Quickstart)
     * [Elements](#Elements)
     * [MacOS&nbsp;via&nbsp;Homebrew](#MacOSviaHomebrew)
+    * [Ubuntu&nbsp;16.04](#Ubuntu1604)
 2. [How it works](#Howitworks)
     * [Actors](#actors)
     * [Workflow](#Workflow)
@@ -54,6 +55,12 @@ This should be used for testing and debugging purposes.
     ~~~zsh
     brew install automake berkeley-db4 libtool boost miniupnpc pkg-config python qt libevent qrencode zmq
     brew install python3 grpc
+    ~~~
+
+    We also need Redis:
+    ~~~zsh
+    brew install redis
+    brew services start redis
     ~~~
 
 3. Create a directory `~/Application\ Support/PAIcoin/` where we will add two configuration files:
@@ -170,6 +177,164 @@ This should be used for testing and debugging purposes.
     ![Get mining status](img/getmininginfo.png)
 * While the mining and training is taking place, you can see the verifications in the output window of `server.py`:
     ![Server verification](img/run-verifier.png).
+
+### Ubuntu&nbsp;16.04
+1. We install the prerequisites for the blockchain part of PoUW.
+    ~~~~zsh
+    sudo apt-get update
+    sudo apt-get install -y software-properties-common
+    sudo add-apt-repository ppa:bitcoin/bitcoin -y
+    sudo apt-get update
+    sudo apt-get install -y \
+        python3 \
+        cpp \
+        build-essential \
+        gcc \
+        g++ \
+        make \
+        pkg-config \
+        autoconf \
+        libboost-all-dev \
+        libssl-dev \
+        libprotobuf-dev \
+        protobuf-compiler \
+        libqt4-dev \
+        libqrencode-dev \
+        libtool \
+        bsdmainutils \
+        libevent-dev \
+        libdb4.8 \
+        libdb4.8++-dev \
+        curl \
+        ssh \
+        git
+    ~~~~
+2. Install Redis:
+    ~~~~zsh
+    sudo apt-get install -y redis-server
+    sudo systemctl enable redis-server.service
+    ~~~~
+3. Install gRPC:
+    ~~~~zsh
+    cd /tmp && \
+        git clone -b $(curl -L https://grpc.io/release) --single-branch https://github.com/grpc/grpc && \
+        cd grpc && \
+        git submodule update --init && \
+        CXXFLAGS='-Wno-error' make -j $(lscpu | grep -E '^CPU\(s)' | awk '{print $2}') HAS_SYSTEM_PROTOBUF=false && \
+        sudo make -j $(lscpu | grep -E '^CPU\(s)' | awk '{print $2}') install && \
+        cd third_party/protobuf && \
+        sudo make -j $(lscpu | grep -E '^CPU\(s)' | awk '{print $2}') install && \
+        rm -rf /tmp/grpc && \
+        export LD_LIBRARY_PATH=/usr/local/lib && \
+        cd ~
+    ~~~~
+
+4. Build and setup PAICoin:
+    First, we clone the project:
+    ~~~~zsh
+    git clone -b pouw-q4 --single-branch https://github.com/projectpai/paicoin.git
+    ~~~~
+    Then, we configure it:
+    ~~~~zsh
+    mkdir .paicoin && cd .paicoin
+    ~~~~
+    We'll place here a file called` paicoin.conf` that has the following content:
+    ~~~ini
+    server=1
+    bantime=1
+    daemon=0
+    rpcuser=paicoin
+    rpcpassword=10050021
+    rpcport=4002
+    testnet=1
+    rpcallowip=0.0.0.0/0
+    txindex=1
+    onlynet=ipv4
+    listenonion=0
+    maxtipage=31104000
+    listen=1
+    rpcbind=0.0.0.0
+    verificationserver=0.0.0.0:50011
+    printtoconsole=1
+    connect=0
+    ignore-not-connected=1
+    dnsseed=0
+    ~~~
+
+    We'll also add another file called `chainparams.conf` with this content:
+    ```ini
+    GENESIS_BLOCK_TIME = 5
+    GENESIS_BLOCK_REWARD = 1470000000
+    INITIAL_BLOCK_REWARD = 150
+    BLOCK_TIME = 5
+
+    TESTNET_CONSENSUS_POW_LIMIT = 01ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+    TESTNET_GENESIS_BLOCK_POW_BITS = 20
+    TESTNET_GENESIS_BLOCK_NBITS = 0x2001ffff
+    TESTNET_GENESIS_BLOCK_SIGNATURE = 9a8abac6c3d97d37d627e6ebcaf68be72275168b
+    TESTNET_GENESIS_BLOCK_UNIX_TIMESTAMP = 1546300800
+
+    TESTNET_PUBKEY_ADDRESS = 51
+    TESTNET_SCRIPT_ADDRESS = 180
+    TESTNET_SECRET_KEY = 226
+
+    TESTNET_MAGIC_BYTE_0 = 11
+    TESTNET_MAGIC_BYTE_1 = 9
+    TESTNET_MAGIC_BYTE_2 = 17
+    TESTNET_MAGIC_BYTE_3 = 7
+
+    TESTNET_PORT = 18567
+    TESTNET_RPC_PORT = 18566
+
+    TESTNET_SEED_0 =
+    TESTNET_SEED_1 =
+    TESTNET_SEED_2 =
+    ```
+    Finally, we will build it:
+    ~~~~zsh
+    cd paicoin/
+    ./autogen.sh
+    ./configure --with-gui=no --disable-tests --disable-bench --enable-chainparams-conf
+    make -j $(lscpu | grep -E '^CPU\(s)' | awk '{print $2}')
+    ~~~~
+5. Let's mine the genesis block:
+    ~~~~zsh
+    cd src/
+    ./paicoind -mine-genesis-block
+    ~~~~
+6. Install the Python dependencies:
+    ~~~~zsh
+    sudo add-apt-repository ppa:deadsnakes/ppa -y
+    sudo apt-get update && sudo apt-get install -y cmake python3-pip python3.7-dev python3.7 python3-setuptools
+    cd ~
+    ~~~~
+7. Setup the Python PoUW extension:
+    ~~~~zsh
+    git clone https://github.com/projectpai/pouw-main-iteration
+
+    cd pouw-main-iteration && \
+        sudo -H python3.7 -m pip install --upgrade pip && \
+        sudo -H sed -i '1s/boto3//;' requirements.txt && \
+        sudo -H python3.7 -m pip install -r requirements.txt && \
+        sudo -H python3.7 -m pip install -U setuptools && \
+        sudo -H python3.7 setup.py develop
+    ~~~~
+
+8. Start the verification server:
+    ~~~~zsh
+    python3.7 pai/pouw/verification/server.py
+    ~~~~
+
+9. Start a PoUW cluster:
+    ~~~~zsh
+    cd pouw-main-iteration/
+    python3.7 pai/pouw/start_cluster.py --nodes-number 3 --python-interpreter='python3.7'
+    ~~~~
+
+10. In another terminal, we start the client:
+    ~~~zsh
+    python3.7 pai/pouw/nodes/decentralized/client.py --client-task-definition-path=pai/pouw/client-task-definition.yaml
+    ~~~
 
 ## How&nbsp;it&nbsp;works
 The environment is the PAI (Personalised Artificial Intelligence) blockchain, a hybrid Proof of Work/Proof of Stake (PoW/PoS) blockchain. It is a P2P decentralised network composed of various actor types to ensure security.
