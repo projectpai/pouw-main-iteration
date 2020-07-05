@@ -20,7 +20,7 @@ Meanwhile, the ML training process takes place at a faster pace inside the miner
 1. [Quickstart](#Quickstart)
     * [Elements](#Elements)
     * [MacOS&nbsp;via&nbsp;Homebrew](#MacOSviaHomebrew)
-    * [Ubuntu&nbsp;16.04](#Ubuntu1604)
+    * [Ubuntu 18.04 and 16.04](#ubuntu-1804-and-1604)
 2. [How it works](#Howitworks)
     * [Actors](#actors)
     * [Workflow](#Workflow)
@@ -178,7 +178,7 @@ This should be used for testing and debugging purposes.
 * While the mining and training is taking place, you can see the verifications in the output window of `server.py`:
     ![Server verification](img/run-verifier.png).
 
-### Ubuntu&nbsp;16.04
+### Ubuntu 18.04 and 16.04
 1. We install the prerequisites for the blockchain part of PoUW.
     ~~~~zsh
     sudo apt-get update
@@ -230,6 +230,7 @@ This should be used for testing and debugging purposes.
     ~~~~
 
 4. Build and setup PAICoin:
+    
     First, we clone the project:
     ~~~~zsh
     git clone -b pouw-q4 --single-branch https://github.com/projectpai/paicoin.git
@@ -292,7 +293,7 @@ This should be used for testing and debugging purposes.
     ```
     Finally, we will build it:
     ~~~~zsh
-    cd paicoin/
+    cd ../paicoin/
     ./autogen.sh
     ./configure --with-gui=no --disable-tests --disable-bench --enable-chainparams-conf
     make -j $(lscpu | grep -E '^CPU\(s)' | awk '{print $2}')
@@ -315,17 +316,25 @@ This should be used for testing and debugging purposes.
     cd pouw-main-iteration && \
         sudo -H python3.7 -m pip install --upgrade pip && \
         sudo -H sed -i '1s/boto3//;' requirements.txt && \
+        sudo -H python3.7 -m pip install -U python3-testresources && \
         sudo -H python3.7 -m pip install -r requirements.txt && \
         sudo -H python3.7 -m pip install -U setuptools && \
         sudo -H python3.7 setup.py develop
     ~~~~
 
-8. Start the verification server:
+8. Start the verification server and the PAICoin daemon:
     ~~~~zsh
     python3.7 pai/pouw/verification/server.py
     ~~~~
 
-9. Start a PoUW cluster:
+    Then, in another terminal:
+    ~~~~zsh
+    cd paicoin/src/
+    ./paicoind -ignore-not-connected
+    ~~~~
+
+9. Start a PoUW cluster (using a new terminal):
+
     ~~~~zsh
     cd pouw-main-iteration/
     python3.7 pai/pouw/start_cluster.py --nodes-number 3 --python-interpreter='python3.7'
@@ -333,6 +342,7 @@ This should be used for testing and debugging purposes.
 
 10. In another terminal, we start the client:
     ~~~zsh
+    cd pouw-main-iteration/
     python3.7 pai/pouw/nodes/decentralized/client.py --client-task-definition-path=pai/pouw/client-task-definition.yaml
     ~~~
 

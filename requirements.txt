@@ -7,7 +7,7 @@ botocore
 merkletools
 requests==2.20.1
 grpcio
-protobuf
+protobuf>3.6
 livestats
 pyyaml<4
 bitcoin-python
