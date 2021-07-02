@@ -108,7 +108,7 @@ class Client:
     def load_training_request_data(self, client_task_file_path):
         self.logger.info('Started loading client task definition file')
         with open(client_task_file_path, 'r') as request_file:
-            request_data = yaml.load(request_file)
+            request_data = yaml.load(request_file, Loader=yaml.UnsafeLoader)
 
         self.validate_training_request_data(request_data)
         request_data['client_id'] = self._client_id
@@ -141,7 +141,7 @@ class Client:
             time.sleep(0.1)
 
         self.logger.info('Collected cluster response')
-        return yaml.load(response_data)
+        return yaml.load(response_data, yaml.UnsafeLoader)
 
     def send_dataset_hashes(self):
         self._dataset_segments = self.get_dataset_hashes()
@@ -302,7 +302,7 @@ class Client:
             time.sleep(0.1)
 
         self.logger.info('Collected training results from cluster')
-        training_results = yaml.load(response_data)
+        training_results = yaml.load(response_data, yaml.UnsafeLoader)
         self.get_best_model(training_results)
 
     def get_best_model(self, worker_training_results):

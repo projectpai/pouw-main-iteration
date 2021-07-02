@@ -25,7 +25,7 @@ def client_task_definition_path():
 @pytest.fixture
 def client_task_definition_data(client_task_definition_path):
     with open(client_task_definition_path) as task_file:
-        task_data = yaml.load(task_file)
+        task_data = yaml.load(task_file, yaml.UnsafeLoader)
 
     task_data['client_id'] = str(uuid.uuid4())
     task_data['client_listen_address'] = str(uuid.uuid4())

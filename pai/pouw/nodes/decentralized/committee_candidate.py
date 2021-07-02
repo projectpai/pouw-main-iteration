@@ -1,6 +1,7 @@
 import abc
 import argparse
 import datetime
+import functools
 import logging
 import math
 import os
@@ -110,7 +111,7 @@ class CommitteeCandidate:
                 break
 
         self.logger.info('Received client request')
-        self.task_data = yaml.load(request)
+        self.task_data = yaml.load(request, Loader=yaml.UnsafeLoader)
         self.validate_request_data()
 
         # we need to assign id to current task
@@ -200,9 +201,9 @@ class CommitteeCandidate:
 
     def register_for_task(self, expire=True):
         if expire:
-            self.conn.set(f'{self._task_registration_channel}_{self.node_id}', None, ex=15)
+            self.conn.set(f'{self._task_registration_channel}_{self.node_id}', '', ex=15)
         else:
-            self.conn.set(f'{self._task_registration_channel}_{self.node_id}', None)
+            self.conn.set(f'{self._task_registration_channel}_{self.node_id}', '')
         self.logger.info('Successfully registered for client task')
 
     def get_training_segments(self):
@@ -216,7 +217,7 @@ class CommitteeCandidate:
             segment_data = self.conn.lrange(self._client_response_listening_channel, 0, -1)
             time.sleep(0.1)
 
-        segment_data = list(map(yaml.load, segment_data))
+        segment_data = list(map(functools.partial(yaml.load, Loader=yaml.UnsafeLoader), segment_data))
         self.logger.warning('Received list of {} segment data from client'.format(len(segment_data)))
         # here we are checking if client has send segments in same order as votes in hash list
         self.validate_segment_list(segment_data)
@@ -246,7 +247,7 @@ class CommitteeCandidate:
             else:
                 break
 
-        request_data = yaml.load(request)
+        request_data = yaml.load(request, yaml.UnsafeLoader)
         self.segment_hash_table = request_data['hashes']
 
     def inform_client_of_hash_allocation(self):
@@ -303,7 +304,7 @@ class CommitteeCandidate:
             segments = self.conn.lrange(assigned_segments_channel, 0, -1)
             time.sleep(0.1)
 
-        segments = list(map(yaml.load, segments))
+        segments = list(map(functools.partial(yaml.load, Loader=yaml.UnsafeLoader), segments))
 
         samples, labels = [], []
 
@@ -356,7 +357,7 @@ class CommitteeCandidate:
                 results = self.conn.lrange(training_results_channel, 0, -1)
                 time.sleep(0.1)
 
-            results = list(map(yaml.load, results))
+            results = list(map(functools.partial(yaml.load, Loader=yaml.UnsafeLoader), results))
 
             self.conn.rpush(self.task_data['client_listen_address'], yaml.dump(results))
             self.unregister_moderator()
@@ -384,7 +385,7 @@ class CommitteeCandidate:
         pass
 
     def disable_registration_for_client_task(self):
-        self.conn.lrem(CLIENT_TASK_CHANNEL, self._raw_task_data, -1)
+        self.conn.lrem(CLIENT_TASK_CHANNEL, -1, self._raw_task_data)
         self.logger.warning("Disabled further registration for this task")
 
 

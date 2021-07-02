@@ -1,3 +1,4 @@
+import functools
 import os.path
 import uuid
 from copy import copy, deepcopy
@@ -192,7 +193,7 @@ def test_send_dataset_hashes_message_format_testing(redisdb, client_task_definit
     client.send_dataset_hashes()
 
     message = redisdb.lpop('test_cluster_address')
-    message_data = yaml.load(message)
+    message_data = yaml.load(message, yaml.UnsafeLoader)
 
     assert message_data['client_id'] == client._client_id
     assert len(message_data['hashes']) == NUMBER_OF_DATASET_SEGMENTS
@@ -300,7 +301,7 @@ def test_send_data_segments_to_client_response_message(mocker, tmpdir, redisdb, 
     message_raw = redisdb.lrange(client._cluster_address, 0, -1)
     assert message_raw is not None
 
-    messages = list(map(yaml.load, message_raw))
+    messages = list(map(functools.partial(yaml.load, Loader=yaml.UnsafeLoader), message_raw))
 
     message = messages[0]
     assert all(key in message for key in ['hash', 'bucket', 'key'])
@@ -333,7 +334,7 @@ def test_send_data_segments_to_client_response_message_order(mocker, tmpdir, red
     message_raw = redisdb.lrange(client._cluster_address, 0, -1)
     assert message_raw is not None
 
-    messages = list(map(yaml.load, message_raw))
+    messages = list(map(functools.partial(yaml.load, Loader=yaml.UnsafeLoader), message_raw))
 
     for key, message in zip(client.segment_hashes, messages):
         assert message['hash'] == key
@@ -371,7 +372,7 @@ def test_send_data_segments_to_client_response_test_subset_withheld(mocker, tmpd
     message_raw = redisdb.lrange(client._cluster_address, 0, -1)
     assert message_raw is not None
 
-    messages = list(map(yaml.load, message_raw))
+    messages = list(map(functools.partial(yaml.load, Loader=yaml.UnsafeLoader), message_raw))
 
     for key, message in zip(client.segment_hashes[:-1], messages):
         assert message['hash'] == key
