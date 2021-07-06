@@ -116,7 +116,7 @@ def verify_iteration(msg_history_id, msg_id, nonce, block_header, redis_host='lo
 
     try:
         with open(os.path.join(os.path.dirname(__file__), '../client-task-definition.yaml'), 'r') as request_file:
-            request_data = yaml.load(request_file)
+            request_data = yaml.load(request_file, yaml.UnsafeLoader)
 
         ver_net = create_network(request_data['ml']['model'])
         ver_net.load_parameters(model_location)

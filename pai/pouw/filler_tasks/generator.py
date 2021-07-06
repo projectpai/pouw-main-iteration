@@ -37,5 +37,5 @@ if __name__ == "__main__":
 
     raw_str = evaluate_file("./template.jsonnet", fp=2,
                             ext_vars=ext_vars, ext_codes=ext_codes)
-    yml = yaml.load(raw_str)
+    yml = yaml.load(raw_str, yaml.UnsafeLoader)
     print(yml)
