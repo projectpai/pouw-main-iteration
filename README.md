@@ -1,5 +1,5 @@
 # Proof of Useful Work
-![Python](https://upload.wikimedia.org/wikipedia/commons/f/fc/Blue_Python_3.7_Shield_Badge.svg) ![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)  [![Maintainability](https://api.codeclimate.com/v1/badges/6c386e3b5e6f45258db1/maintainability)](https://codeclimate.com/github/projectpai/pouw-main-iteration/maintainability)
+![Python](https://upload.wikimedia.org/wikipedia/commons/thumb/a/a5/Blue_Python_3.8_Shield_Badge.svg/77px-Blue_Python_3.8_Shield_Badge.svg.png) ![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)  [![Maintainability](https://api.codeclimate.com/v1/badges/6c386e3b5e6f45258db1/maintainability)](https://codeclimate.com/github/projectpai/pouw-main-iteration/maintainability)
 
 Proof of Useful Work (PoUW) is a novel blockchain platform with a new type of user, that is additional to the typical blockchain transactor: the requestor. This paradigm shift has a dual purpose: we provide a typical cryptocurrency with the added benefit of a computational platform at an affordable price.
 
@@ -102,7 +102,7 @@ This should be used for testing and debugging purposes.
     TESTNET_GENESIS_BLOCK_POW_BITS = 20
     TESTNET_GENESIS_BLOCK_NBITS = 0x2001ffff
     TESTNET_GENESIS_BLOCK_SIGNATURE = 9a8abac6c3d97d37d627e6ebcaf68be72275168b
-    TESTNET_GENESIS_BLOCK_UNIX_TIMESTAMP = 1546300800
+    TESTNET_GENESIS_BLOCK_UNIX_TIMESTAMP = 1626260220
 
     TESTNET_PUBKEY_ADDRESS = 51
     TESTNET_SCRIPT_ADDRESS = 180
@@ -178,36 +178,33 @@ This should be used for testing and debugging purposes.
 * While the mining and training is taking place, you can see the verifications in the output window of `server.py`:
     ![Server verification](img/run-verifier.png).
 
-### Ubuntu 18.04 and 16.04
+### Ubuntu 20.04
 1. We install the prerequisites for the blockchain part of PoUW.
     ~~~~zsh
-    sudo apt-get update
-    sudo apt-get install -y software-properties-common
-    sudo add-apt-repository ppa:bitcoin/bitcoin -y
-    sudo apt-get update
+    sudo apt-get update && sudo apt-get install -y software-properties-common && \
+    sudo add-apt-repository ppa:rock-core/qt4 -y && \
+    sudo apt-get update && \
     sudo apt-get install -y \
-        python3 \
-        cpp \
-        build-essential \
-        gcc \
-        g++ \
-        make \
-        pkg-config \
-        autoconf \
-        libboost-all-dev \
-        libssl-dev \
-        libprotobuf-dev \
-        protobuf-compiler \
-        libqt4-dev \
-        libqrencode-dev \
-        libtool \
-        bsdmainutils \
-        libevent-dev \
-        libdb4.8 \
-        libdb4.8++-dev \
-        curl \
-        ssh \
-        git
+    python3 \
+    cpp \
+    build-essential \
+    gcc \
+    g++ \
+    make \
+    pkg-config \
+    autoconf \
+    libboost-all-dev \
+    libssl-dev \
+    libprotobuf-dev \
+    protobuf-compiler \
+    libqt4-dev \
+    libqrencode-dev \
+    libtool \
+    bsdmainutils \
+    libevent-dev \
+    curl \
+    ssh \
+    git
     ~~~~
 2. Install Redis:
     ~~~~zsh
@@ -216,8 +213,11 @@ This should be used for testing and debugging purposes.
     ~~~~
 3. Install gRPC:
     ~~~~zsh
+    sudo -i
+
     cd /tmp && \
-        git clone -b $(curl -L https://grpc.io/release) --single-branch https://github.com/grpc/grpc && \
+        cd /tmp && \
+        git clone -b v1.30.2 --single-branch https://github.com/grpc/grpc && \
         cd grpc && \
         git submodule update --init && \
         CXXFLAGS='-Wno-error' make -j $(lscpu | grep -E '^CPU\(s)' | awk '{print $2}') HAS_SYSTEM_PROTOBUF=false && \
@@ -225,19 +225,29 @@ This should be used for testing and debugging purposes.
         cd third_party/protobuf && \
         sudo make -j $(lscpu | grep -E '^CPU\(s)' | awk '{print $2}') install && \
         rm -rf /tmp/grpc && \
-        export LD_LIBRARY_PATH=/usr/local/lib && \
-        cd ~
+        export LD_LIBRARY_PATH=/usr/local/lib
     ~~~~
 
 4. Build and setup PAICoin:
     
-    First, we clone the project:
+    First, we build paicoin:
     ~~~~zsh
-    git clone -b pouw-q4 --single-branch https://github.com/projectpai/paicoin.git
+    cd /tmp
+
+    sudo mkdir /opt/paicoin
+
+    sudo git clone -b pouw-q4 --single-branch https://github.com/projectpai/paicoin.git /opt/paicoin
+    
+    cd /opt/paicoin
+
+    sudo /bin/bash berkley.sh && \
+    mkdir ~/app && \
+    ln -s /opt/paicoin/src/paicoind ~/app/paicoind && \
+    ln -s /opt/paicoin/src/paicoin-cli ~/app/paicoin-cli
     ~~~~
     Then, we configure it:
     ~~~~zsh
-    mkdir .paicoin && cd .paicoin
+    mkdir ~/.paicoin && cd ~/.paicoin
     ~~~~
     We'll place here a file called` paicoin.conf` that has the following content:
     ~~~ini
@@ -273,7 +283,7 @@ This should be used for testing and debugging purposes.
     TESTNET_GENESIS_BLOCK_POW_BITS = 20
     TESTNET_GENESIS_BLOCK_NBITS = 0x2001ffff
     TESTNET_GENESIS_BLOCK_SIGNATURE = 9a8abac6c3d97d37d627e6ebcaf68be72275168b
-    TESTNET_GENESIS_BLOCK_UNIX_TIMESTAMP = 1546300800
+    TESTNET_GENESIS_BLOCK_UNIX_TIMESTAMP = 1626260220
 
     TESTNET_PUBKEY_ADDRESS = 51
     TESTNET_SCRIPT_ADDRESS = 180
@@ -291,59 +301,49 @@ This should be used for testing and debugging purposes.
     TESTNET_SEED_1 =
     TESTNET_SEED_2 =
     ```
-    Finally, we will build it:
-    ~~~~zsh
-    cd ../paicoin/
-    ./autogen.sh
-    ./configure --with-gui=no --disable-tests --disable-bench --enable-chainparams-conf
-    make -j $(lscpu | grep -E '^CPU\(s)' | awk '{print $2}')
-    ~~~~
 5. Let's mine the genesis block:
     ~~~~zsh
-    cd src/
+    cd ~/app/
     ./paicoind -mine-genesis-block
     ~~~~
 6. Install the Python dependencies:
     ~~~~zsh
-    sudo add-apt-repository ppa:deadsnakes/ppa -y
-    sudo apt-get update && sudo apt-get install -y cmake python3-pip python3.7-dev python3.7 python3-setuptools
-    cd ~
+    sudo apt-get update && sudo apt-get install -y cmake python3-pip python3-dev python3 python3-setuptools
+
+    cd /opt
     ~~~~
 7. Setup the Python PoUW extension:
     ~~~~zsh
     git clone https://github.com/projectpai/pouw-main-iteration
 
-    cd pouw-main-iteration && \
-        sudo -H python3.7 -m pip install --upgrade pip && \
-        sudo -H sed -i '1s/boto3//;' requirements.txt && \
-        sudo -H python3.7 -m pip install -U python3-testresources && \
-        sudo -H python3.7 -m pip install -r requirements.txt && \
-        sudo -H python3.7 -m pip install -U setuptools && \
-        sudo -H python3.7 setup.py develop
+    cd /opt/main-iteration && \
+        sed -i '1s/boto3//;' requirements.txt && \
+        pip install -r requirements.txt && \
+        python3 setup.py develop
     ~~~~
 
 8. Start the verification server and the PAICoin daemon:
     ~~~~zsh
-    python3.7 pai/pouw/verification/server.py
+    python3 pai/pouw/verification/server.py
     ~~~~
 
     Then, in another terminal:
     ~~~~zsh
-    cd paicoin/src/
+    cd ~/app
     ./paicoind -ignore-not-connected
     ~~~~
 
 9. Start a PoUW cluster (using a new terminal):
 
     ~~~~zsh
-    cd pouw-main-iteration/
-    python3.7 pai/pouw/start_cluster.py --nodes-number 3 --python-interpreter='python3.7'
+    cd /opt/pouw-main-iteration/
+    python3 pai/pouw/start_cluster.py --nodes-number 3
     ~~~~
 
 10. In another terminal, we start the client:
     ~~~zsh
-    cd pouw-main-iteration/
-    python3.7 pai/pouw/nodes/decentralized/client.py --client-task-definition-path=pai/pouw/client-task-definition.yaml
+    cd /opt/pouw-main-iteration/
+    python3 pai/pouw/nodes/decentralized/client.py --client-task-definition-path=pai/pouw/client-task-definition.yaml
     ~~~
 
 ## How&nbsp;it&nbsp;works
