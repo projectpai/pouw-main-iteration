@@ -16,20 +16,30 @@ brew install gflags
 
 ### Installing
 
+First we install a local version of gRPC (this is for Ubuntu systems):
 ```
-git clone -b $(curl -L http://grpc.io/release) https://github.com/grpc/grpc
+export MY_INSTALL_DIR=/Volumes/blackbox/Archive/uar/pouw-main-iteration/pai/pouw/verification/verifier_client/local
+git clone --recurse-submodules -b v1.30.2 https://github.com/grpc/grpc
 cd grpc
-git submodule update --init
-mkdir bin
-cd bin
-
-cmake -DgRPC_INSTALL=ON -DgRPC_BUILD_TESTS=OFF -DgRPC_PROTOBUF_PROVIDER=package -DgRPC_ZLIB_PROVIDER=package -DgRPC_CARES_PROVIDER=package -DgRPC_SSL_PROVIDER=package -DCMAKE_BUILD_TYPE=Release -DOPENSSL_ROOT_DIR=/usr/local/Cellar/openssl/1.0.2p -DOPENSSL_LIBRARIES=/usr/local/Cellar/openssl/1.0.2p/lib ..
-
-make -j4
-sudo make install
+mkdir -p cmake/build
+pushd cmake/build
+cmake -DgRPC_INSTALL=ON \
+      -DgRPC_BUILD_TESTS=OFF \
+      -DCMAKE_INSTALL_PREFIX=$MY_INSTALL_DIR \
+      ../..
+make -j
+make install
+popd
 ```
 
 ### Development
+Go to the verifier_client folder and run the following commands:
+```
+mkdir -p cmake/build
+$ pushd cmake/build
+$ cmake -DCMAKE_PREFIX_PATH=$MY_INSTALL_DIR ../..
+$ make -j
+```
 
 After installing gRPC, you can build the project in the IDE of your choice (e.g. CLion).
 `verifier_client.cc` contains the minimum code to start using the verification server. The interface is found in `../verifier.proto`.

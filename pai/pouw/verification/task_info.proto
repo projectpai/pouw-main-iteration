@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package pai.pouw.task_info;
+
+// definition of verifier service
+service TaskInfo {
+    rpc GetWaitingTasks (TaskListRequest) returns (TaskListResponse) {}
+}
+
+// Request message
+message TaskListRequest {
+}
+
+// Response message
+message TaskListResponse {
+    repeated string tasks = 1;
+}

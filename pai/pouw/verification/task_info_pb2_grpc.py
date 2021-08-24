@@ -2,10 +2,10 @@
 """Client and server classes corresponding to protobuf-defined services."""
 import grpc
 
-import verifier_pb2 as verifier__pb2
+import task_info_pb2 as task__info__pb2
 
 
-class VerifierStub(object):
+class TaskInfoStub(object):
     """definition of verifier service
     """
 
@@ -15,44 +15,44 @@ class VerifierStub(object):
         Args:
             channel: A grpc.Channel.
         """
-        self.Verify = channel.unary_unary(
-                '/pai.pouw.verification.Verifier/Verify',
-                request_serializer=verifier__pb2.Request.SerializeToString,
-                response_deserializer=verifier__pb2.Response.FromString,
+        self.GetWaitingTasks = channel.unary_unary(
+                '/pai.pouw.task_info.TaskInfo/GetWaitingTasks',
+                request_serializer=task__info__pb2.TaskListRequest.SerializeToString,
+                response_deserializer=task__info__pb2.TaskListResponse.FromString,
                 )
 
 
-class VerifierServicer(object):
+class TaskInfoServicer(object):
     """definition of verifier service
     """
 
-    def Verify(self, request, context):
+    def GetWaitingTasks(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
 
-def add_VerifierServicer_to_server(servicer, server):
+def add_TaskInfoServicer_to_server(servicer, server):
     rpc_method_handlers = {
-            'Verify': grpc.unary_unary_rpc_method_handler(
-                    servicer.Verify,
-                    request_deserializer=verifier__pb2.Request.FromString,
-                    response_serializer=verifier__pb2.Response.SerializeToString,
+            'GetWaitingTasks': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetWaitingTasks,
+                    request_deserializer=task__info__pb2.TaskListRequest.FromString,
+                    response_serializer=task__info__pb2.TaskListResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
-            'pai.pouw.verification.Verifier', rpc_method_handlers)
+            'pai.pouw.task_info.TaskInfo', rpc_method_handlers)
     server.add_generic_rpc_handlers((generic_handler,))
 
 
  # This class is part of an EXPERIMENTAL API.
-class Verifier(object):
+class TaskInfo(object):
     """definition of verifier service
     """
 
     @staticmethod
-    def Verify(request,
+    def GetWaitingTasks(request,
             target,
             options=(),
             channel_credentials=None,
@@ -62,8 +62,8 @@ class Verifier(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/pai.pouw.verification.Verifier/Verify',
-            verifier__pb2.Request.SerializeToString,
-            verifier__pb2.Response.FromString,
+        return grpc.experimental.unary_unary(request, target, '/pai.pouw.task_info.TaskInfo/GetWaitingTasks',
+            task__info__pb2.TaskListRequest.SerializeToString,
+            task__info__pb2.TaskListResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)

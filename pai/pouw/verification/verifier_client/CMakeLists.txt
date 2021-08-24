@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.20)
 
 project(ClientVerifier C CXX)
 
@@ -33,24 +33,49 @@ else()
   set(_GRPC_CPP_PLUGIN_EXECUTABLE $<TARGET_FILE:gRPC::grpc_cpp_plugin>)
 endif()
 
-# Proto file
-get_filename_component(hw_proto "../verifier.proto" ABSOLUTE)
-get_filename_component(hw_proto_path "${hw_proto}" PATH)
+# Proto file for verification
+get_filename_component(verification_proto "../verifier.proto" ABSOLUTE)
+get_filename_component(verification_proto_path "${verification_proto}" PATH)
 
-# Generated sources
-set(hw_proto_srcs "${CMAKE_CURRENT_BINARY_DIR}/verifier.pb.cc")
-set(hw_proto_hdrs "${CMAKE_CURRENT_BINARY_DIR}/verifier.pb.h")
-set(hw_grpc_srcs "${CMAKE_CURRENT_BINARY_DIR}/verifier.grpc.pb.cc")
-set(hw_grpc_hdrs "${CMAKE_CURRENT_BINARY_DIR}/verifier.grpc.pb.h")
+# Proto file for task info
+get_filename_component(task_info_proto "../task_info.proto" ABSOLUTE)
+get_filename_component(task_info_proto_path "${task_info_proto}" PATH)
+
+
+# Generated sources for verification
+set(verification_proto_srcs "${CMAKE_CURRENT_BINARY_DIR}/verifier.pb.cc")
+set(verification_proto_hdrs "${CMAKE_CURRENT_BINARY_DIR}/verifier.pb.h")
+set(verification_grpc_srcs "${CMAKE_CURRENT_BINARY_DIR}/verifier.grpc.pb.cc")
+set(verification_grpc_hdrs "${CMAKE_CURRENT_BINARY_DIR}/verifier.grpc.pb.h")
+
+
+# Generated sources for task info
+set(task_info_proto_srcs "${CMAKE_CURRENT_BINARY_DIR}/task_info.pb.cc")
+set(task_info_proto_hdrs "${CMAKE_CURRENT_BINARY_DIR}/task_info.pb.h")
+set(task_info_grpc_srcs "${CMAKE_CURRENT_BINARY_DIR}/task_info.grpc.pb.cc")
+set(task_info_grpc_hdrs "${CMAKE_CURRENT_BINARY_DIR}/task_info.grpc.pb.h")
+
+
 add_custom_command(
-      OUTPUT "${hw_proto_srcs}" "${hw_proto_hdrs}" "${hw_grpc_srcs}" "${hw_grpc_hdrs}"
+      OUTPUT "${verification_proto_srcs}" "${verification_proto_hdrs}" "${verification_grpc_srcs}" "${verification_grpc_hdrs}"
       COMMAND ${_PROTOBUF_PROTOC}
       ARGS --grpc_out "${CMAKE_CURRENT_BINARY_DIR}"
         --cpp_out "${CMAKE_CURRENT_BINARY_DIR}"
-        -I "${hw_proto_path}"
+        -I "${verification_proto_path}"
         --plugin=protoc-gen-grpc="${_GRPC_CPP_PLUGIN_EXECUTABLE}"
-        "${hw_proto}"
-      DEPENDS "${hw_proto}")
+        "${verification_proto}"
+      DEPENDS "${verification_proto}")
+
+
+add_custom_command(
+        OUTPUT "${task_info_proto_srcs}" "${task_info_proto_hdrs}" "${task_info_grpc_srcs}" "${task_info_grpc_hdrs}"
+        COMMAND ${_PROTOBUF_PROTOC}
+        ARGS --grpc_out "${CMAKE_CURRENT_BINARY_DIR}"
+        --cpp_out "${CMAKE_CURRENT_BINARY_DIR}"
+        -I "${task_info_proto_path}"
+        --plugin=protoc-gen-grpc="${_GRPC_CPP_PLUGIN_EXECUTABLE}"
+        "${task_info_proto}"
+        DEPENDS "${task_info_proto}")
 
 
 include_directories("${CMAKE_CURRENT_BINARY_DIR}")
@@ -58,8 +83,10 @@ include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 foreach(_target
   verifier_client)
   add_executable(${_target} "${_target}.cc"
-    ${hw_proto_srcs}
-    ${hw_grpc_srcs})
+    ${verification_proto_srcs}
+    ${verification_grpc_srcs}
+          ${task_info_proto_srcs}
+          ${task_info_grpc_srcs})
   target_link_libraries(${_target}
     ${_GRPC_GRPCPP_UNSECURE}
     ${_PROTOBUF_LIBPROTOBUF})

@@ -4,21 +4,23 @@
 #include <utility>
 
 #include <grpcpp/grpcpp.h>
-
-#ifdef BAZEL_BUILD
-#include "examples/protos/helloworld.grpc.pb.h"
-#else
 #include "verifier.grpc.pb.h"
-#endif
+#include "task_info.grpc.pb.h"
 
 using grpc::Channel;
 using grpc::ClientContext;
 using grpc::Status;
+
 using pai::pouw::verification::Request;
 using pai::pouw::verification::Response;
 using pai::pouw::verification::Verifier;
 using pai::pouw::verification::Response_ReturnCode;
 using pai::pouw::verification::Response_ReturnCode_GENERAL_ERROR;
+
+using pai::pouw::task_info::TaskListRequest;
+using pai::pouw::task_info::TaskListResponse;
+using pai::pouw::task_info::TaskInfo;
+
 
 class VerificationClient {
  public:
@@ -30,7 +32,7 @@ class VerificationClient {
     Request request;
     request.set_msg_history_id("100");
     request.set_msg_id("100");
-    request.set_nonce("1");
+    request.set_nonce(1);
 
     Response response;
     ClientContext context;
@@ -52,12 +54,50 @@ class VerificationClient {
   std::unique_ptr<Verifier::Stub> stub_;
 };
 
+
+class TaskListClient {
+public:
+    TaskListClient(std::shared_ptr<Channel> channel)
+    : stub_(TaskInfo::NewStub(channel)) {}
+
+    std::vector<std::string> TestGetWaitingTasks() {
+
+        TaskListRequest request;
+
+        TaskListResponse response;
+        ClientContext context;
+
+        // The actual RPC.
+        Status status = stub_->GetWaitingTasks(&context, request, &response);
+
+        // Act upon its status.
+        if (status.ok()) {
+            auto tasks = response.tasks();
+            return std::vector<std::string>(tasks.begin(), tasks.end());
+        } else {
+            std::cout << status.error_code() << ": " << status.error_message()
+            << std::endl;
+            return std::vector<std::string>();
+        }
+    }
+
+private:
+    std::unique_ptr<TaskInfo::Stub> stub_;
+};
+
 int main(int argc, char** argv) {
-  VerificationClient greeter(grpc::CreateChannel(
+  /*VerificationClient greeter(grpc::CreateChannel(
       "localhost:50011", grpc::InsecureChannelCredentials()));
-  auto result = greeter.TestServer();
-  std::cout << "Code:" << int(result.first) << std::endl;
-  std::cout << "Description: " << result.second << std::endl;
+  auto verificationResult = greeter.TestServer();
+  std::cout << "Code:" << int(verificationResult.first) << std::endl;
+  std::cout << "Description: " << verificationResult.second << std::endl;*/
+
+  TaskListClient taskLister(grpc::CreateChannel(
+          "localhost:50011", grpc::InsecureChannelCredentials()));
+  auto taskList = taskLister.TestGetWaitingTasks();
+  std::cout << "Tasks:\n";
+  for (auto t : taskList)
+      std::cout << t << "\n";
 
   return 0;
 }
