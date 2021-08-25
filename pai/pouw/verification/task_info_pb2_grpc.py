@@ -6,8 +6,7 @@ import task_info_pb2 as task__info__pb2
 
 
 class TaskInfoStub(object):
-    """definition of verifier service
-    """
+    """Missing associated documentation comment in .proto file."""
 
     def __init__(self, channel):
         """Constructor.
@@ -23,8 +22,7 @@ class TaskInfoStub(object):
 
 
 class TaskInfoServicer(object):
-    """definition of verifier service
-    """
+    """Missing associated documentation comment in .proto file."""
 
     def GetWaitingTasks(self, request, context):
         """Missing associated documentation comment in .proto file."""
@@ -48,8 +46,7 @@ def add_TaskInfoServicer_to_server(servicer, server):
 
  # This class is part of an EXPERIMENTAL API.
 class TaskInfo(object):
-    """definition of verifier service
-    """
+    """Missing associated documentation comment in .proto file."""
 
     @staticmethod
     def GetWaitingTasks(request,

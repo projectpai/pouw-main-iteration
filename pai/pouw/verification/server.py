@@ -24,7 +24,7 @@ class VerifierServicer(VerifierServicer):
 
 class TaskInfoServicer(TaskInfoServicer):
     def GetWaitingTasks(self, request, context):
-        return get_waiting_tasks(redis_host=self.redis_host, redis_port=self.redis_port)
+        return get_waiting_tasks(request.page, request.per_page, redis_host=self.redis_host, redis_port=self.redis_port)
 
 
 def main():

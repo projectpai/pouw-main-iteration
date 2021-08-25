@@ -4,6 +4,7 @@
 #include <utility>
 
 #include <grpcpp/grpcpp.h>
+#include <google/protobuf/util/time_util.h>
 #include "verifier.grpc.pb.h"
 #include "task_info.grpc.pb.h"
 
@@ -60,9 +61,11 @@ public:
     TaskListClient(std::shared_ptr<Channel> channel)
     : stub_(TaskInfo::NewStub(channel)) {}
 
-    std::vector<std::string> TestGetWaitingTasks() {
+    void TestGetWaitingTasks() {
 
         TaskListRequest request;
+        request.set_page(1);
+        request.set_per_page(20);
 
         TaskListResponse response;
         ClientContext context;
@@ -72,12 +75,37 @@ public:
 
         // Act upon its status.
         if (status.ok()) {
+            auto code = response.code();
+            auto pagination = response.pagination();
             auto tasks = response.tasks();
-            return std::vector<std::string>(tasks.begin(), tasks.end());
+            std::cout << "Code: " << code << std::endl;
+            std::cout << std::endl;
+            std::cout << "Pagination:" << std::endl;
+            std::cout << "- page: " << pagination.page() << std::endl;
+            std::cout << "- per_page: " << pagination.per_page() << std::endl;
+            std::cout << "- page_count: " << pagination.page_count() << std::endl;
+            std::cout << "- total_count: " << pagination.total_count() << std::endl;
+            std::cout << std::endl;
+            std::cout << "- Navigation:" << std::endl;
+            std::cout << "  - self: " << pagination.navigation().self() << std::endl;
+            std::cout << "  - first: " << pagination.navigation().first() << std::endl;
+            std::cout << "  - previous: " << pagination.navigation().previous() << std::endl;
+            std::cout << "  - next: " << pagination.navigation().next() << std::endl;
+            std::cout << "  - last: " << pagination.navigation().last() << std::endl;
+            std::cout << std::endl;
+            std::cout << "Tasks: " << std::endl;
+            for (auto task : tasks) {
+                std::cout << "- task_id: " << task.task_id() << std::endl;
+                std::cout << "  - model_type: " << task.model_type() << std::endl;
+                std::cout << "  - nodes_no: " << task.nodes_no() << std::endl;
+                std::cout << "  - batch_size: " << task.batch_size() << std::endl;
+                std::cout << "  - optimizer: " << task.optimizer() << std::endl;
+                std::cout << "  - created: " << google::protobuf::util::TimeUtil::ToString(task.created()) << std::endl;
+                std::cout << std::endl;
+            }
         } else {
             std::cout << status.error_code() << ": " << status.error_message()
             << std::endl;
-            return std::vector<std::string>();
         }
     }
 
@@ -94,10 +122,6 @@ int main(int argc, char** argv) {
 
   TaskListClient taskLister(grpc::CreateChannel(
           "localhost:50011", grpc::InsecureChannelCredentials()));
-  auto taskList = taskLister.TestGetWaitingTasks();
-  std::cout << "Tasks:\n";
-  for (auto t : taskList)
-      std::cout << t << "\n";
-
+  taskLister.TestGetWaitingTasks();
   return 0;
 }
