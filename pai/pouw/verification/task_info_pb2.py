@@ -21,7 +21,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   syntax='proto3',
   serialized_options=None,
   create_key=_descriptor._internal_create_key,
-  serialized_pb=b'\n\x0ftask_info.proto\x12\x12pai.pouw.task_info\x1a\x1fgoogle/protobuf/timestamp.proto\"1\n\x0fTaskListRequest\x12\x0c\n\x04page\x18\x01 \x01(\r\x12\x10\n\x08per_page\x18\x02 \x01(\r\"\x97\x01\n\nTaskRecord\x12\x0f\n\x07task_id\x18\x01 \x01(\t\x12\x12\n\nmodel_type\x18\x02 \x01(\t\x12\x10\n\x08nodes_no\x18\x03 \x01(\x04\x12\x12\n\nbatch_size\x18\x04 \x01(\r\x12\x11\n\toptimizer\x18\x05 \x01(\t\x12+\n\x07\x63reated\x18\x06 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\"\xed\x01\n\nPagination\x12\x0c\n\x04page\x18\x01 \x01(\r\x12\x10\n\x08per_page\x18\x02 \x01(\r\x12\x12\n\npage_count\x18\x03 \x01(\r\x12\x13\n\x0btotal_count\x18\x04 \x01(\r\x12=\n\nnavigation\x18\x05 \x01(\x0b\x32).pai.pouw.task_info.Pagination.Navigation\x1aW\n\nNavigation\x12\x0c\n\x04self\x18\x01 \x01(\t\x12\r\n\x05\x66irst\x18\x02 \x01(\t\x12\x10\n\x08previous\x18\x03 \x01(\t\x12\x0c\n\x04next\x18\x04 \x01(\t\x12\x0c\n\x04last\x18\x05 \x01(\t\"\xa7\x01\n\x10TaskListResponse\x12\x30\n\x04\x63ode\x18\x01 \x01(\x0e\x32\".pai.pouw.task_info.HTTPReturnCode\x12\x32\n\npagination\x18\x02 \x01(\x0b\x32\x1e.pai.pouw.task_info.Pagination\x12-\n\x05tasks\x18\x03 \x03(\x0b\x32\x1e.pai.pouw.task_info.TaskRecord*\\\n\x0eHTTPReturnCode\x12\x11\n\rGENERAL_ERROR\x10\x00\x12\x07\n\x02OK\x10\xc8\x01\x12\x10\n\x0b\x42\x41\x44_REQUEST\x10\x90\x03\x12\x0e\n\tNOT_FOUND\x10\x94\x03\x12\x0c\n\x07INVALID\x10\xa6\x03\x32h\n\x08TaskInfo\x12\\\n\x0fGetWaitingTasks\x12#.pai.pouw.task_info.TaskListRequest\x1a$.pai.pouw.task_info.TaskListResponseb\x06proto3'
+  serialized_pb=b'\n\x0ftask_info.proto\x12\x12pai.pouw.task_info\x1a\x1fgoogle/protobuf/timestamp.proto\"1\n\x0fTaskListRequest\x12\x0c\n\x04page\x18\x01 \x01(\r\x12\x10\n\x08per_page\x18\x02 \x01(\r\"\x97\x01\n\nTaskRecord\x12\x0f\n\x07task_id\x18\x01 \x01(\t\x12\x12\n\nmodel_type\x18\x02 \x01(\t\x12\x10\n\x08nodes_no\x18\x03 \x01(\x04\x12\x12\n\nbatch_size\x18\x04 \x01(\r\x12\x11\n\toptimizer\x18\x05 \x01(\t\x12+\n\x07\x63reated\x18\x06 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\"\xed\x01\n\nPagination\x12\x0c\n\x04page\x18\x01 \x01(\r\x12\x10\n\x08per_page\x18\x02 \x01(\r\x12\x12\n\npage_count\x18\x03 \x01(\r\x12\x13\n\x0btotal_count\x18\x04 \x01(\r\x12=\n\nnavigation\x18\x05 \x01(\x0b\x32).pai.pouw.task_info.Pagination.Navigation\x1aW\n\nNavigation\x12\x0c\n\x04self\x18\x01 \x01(\t\x12\r\n\x05\x66irst\x18\x02 \x01(\t\x12\x10\n\x08previous\x18\x03 \x01(\t\x12\x0c\n\x04next\x18\x04 \x01(\t\x12\x0c\n\x04last\x18\x05 \x01(\t\"\xa7\x01\n\x10TaskListResponse\x12\x30\n\x04\x63ode\x18\x01 \x01(\x0e\x32\".pai.pouw.task_info.HTTPReturnCode\x12\x32\n\npagination\x18\x02 \x01(\x0b\x32\x1e.pai.pouw.task_info.Pagination\x12-\n\x05tasks\x18\x03 \x03(\x0b\x32\x1e.pai.pouw.task_info.TaskRecord*\\\n\x0eHTTPReturnCode\x12\x11\n\rGENERAL_ERROR\x10\x00\x12\x07\n\x02OK\x10\xc8\x01\x12\x10\n\x0b\x42\x41\x44_REQUEST\x10\x90\x03\x12\x0e\n\tNOT_FOUND\x10\x94\x03\x12\x0c\n\x07INVALID\x10\xa6\x03\x32\xa6\x02\n\x08TaskInfo\x12\\\n\x0fGetWaitingTasks\x12#.pai.pouw.task_info.TaskListRequest\x1a$.pai.pouw.task_info.TaskListResponse\x12\\\n\x0fGetStartedTasks\x12#.pai.pouw.task_info.TaskListRequest\x1a$.pai.pouw.task_info.TaskListResponse\x12^\n\x11GetCompletedTasks\x12#.pai.pouw.task_info.TaskListRequest\x1a$.pai.pouw.task_info.TaskListResponseb\x06proto3'
   ,
   dependencies=[google_dot_protobuf_dot_timestamp__pb2.DESCRIPTOR,])
 
@@ -402,13 +402,33 @@ _TASKINFO = _descriptor.ServiceDescriptor(
   index=0,
   serialized_options=None,
   create_key=_descriptor._internal_create_key,
-  serialized_start=781,
-  serialized_end=885,
+  serialized_start=782,
+  serialized_end=1076,
   methods=[
   _descriptor.MethodDescriptor(
     name='GetWaitingTasks',
     full_name='pai.pouw.task_info.TaskInfo.GetWaitingTasks',
     index=0,
+    containing_service=None,
+    input_type=_TASKLISTREQUEST,
+    output_type=_TASKLISTRESPONSE,
+    serialized_options=None,
+    create_key=_descriptor._internal_create_key,
+  ),
+  _descriptor.MethodDescriptor(
+    name='GetStartedTasks',
+    full_name='pai.pouw.task_info.TaskInfo.GetStartedTasks',
+    index=1,
+    containing_service=None,
+    input_type=_TASKLISTREQUEST,
+    output_type=_TASKLISTRESPONSE,
+    serialized_options=None,
+    create_key=_descriptor._internal_create_key,
+  ),
+  _descriptor.MethodDescriptor(
+    name='GetCompletedTasks',
+    full_name='pai.pouw.task_info.TaskInfo.GetCompletedTasks',
+    index=2,
     containing_service=None,
     input_type=_TASKLISTREQUEST,
     output_type=_TASKLISTRESPONSE,

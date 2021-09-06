@@ -19,6 +19,16 @@ class TaskInfoStub(object):
                 request_serializer=task__info__pb2.TaskListRequest.SerializeToString,
                 response_deserializer=task__info__pb2.TaskListResponse.FromString,
                 )
+        self.GetStartedTasks = channel.unary_unary(
+                '/pai.pouw.task_info.TaskInfo/GetStartedTasks',
+                request_serializer=task__info__pb2.TaskListRequest.SerializeToString,
+                response_deserializer=task__info__pb2.TaskListResponse.FromString,
+                )
+        self.GetCompletedTasks = channel.unary_unary(
+                '/pai.pouw.task_info.TaskInfo/GetCompletedTasks',
+                request_serializer=task__info__pb2.TaskListRequest.SerializeToString,
+                response_deserializer=task__info__pb2.TaskListResponse.FromString,
+                )
 
 
 class TaskInfoServicer(object):
@@ -30,11 +40,33 @@ class TaskInfoServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def GetStartedTasks(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def GetCompletedTasks(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_TaskInfoServicer_to_server(servicer, server):
     rpc_method_handlers = {
             'GetWaitingTasks': grpc.unary_unary_rpc_method_handler(
                     servicer.GetWaitingTasks,
+                    request_deserializer=task__info__pb2.TaskListRequest.FromString,
+                    response_serializer=task__info__pb2.TaskListResponse.SerializeToString,
+            ),
+            'GetStartedTasks': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetStartedTasks,
+                    request_deserializer=task__info__pb2.TaskListRequest.FromString,
+                    response_serializer=task__info__pb2.TaskListResponse.SerializeToString,
+            ),
+            'GetCompletedTasks': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetCompletedTasks,
                     request_deserializer=task__info__pb2.TaskListRequest.FromString,
                     response_serializer=task__info__pb2.TaskListResponse.SerializeToString,
             ),
@@ -60,6 +92,40 @@ class TaskInfo(object):
             timeout=None,
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/pai.pouw.task_info.TaskInfo/GetWaitingTasks',
+            task__info__pb2.TaskListRequest.SerializeToString,
+            task__info__pb2.TaskListResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def GetStartedTasks(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/pai.pouw.task_info.TaskInfo/GetStartedTasks',
+            task__info__pb2.TaskListRequest.SerializeToString,
+            task__info__pb2.TaskListResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def GetCompletedTasks(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/pai.pouw.task_info.TaskInfo/GetCompletedTasks',
             task__info__pb2.TaskListRequest.SerializeToString,
             task__info__pb2.TaskListResponse.FromString,
             options, channel_credentials,
