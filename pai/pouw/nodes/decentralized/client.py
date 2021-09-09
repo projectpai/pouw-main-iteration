@@ -114,6 +114,8 @@ class Client:
         self.validate_training_request_data(request_data)
         request_data['client_id'] = self._client_id
         request_data['client_listen_address'] = self._client_listen_address
+        current_time = str(datetime.datetime.now().timestamp())
+        request_data['created'] = current_time
         self._cluster_request_data = request_data
         self.logger.info('Completed loading of client task definition file')
 
