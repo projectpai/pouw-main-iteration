@@ -29,6 +29,11 @@ class TaskInfoStub(object):
                 request_serializer=task__info__pb2.TaskListRequest.SerializeToString,
                 response_deserializer=task__info__pb2.TaskListResponse.FromString,
                 )
+        self.GetTaskDetails = channel.unary_unary(
+                '/pai.pouw.task_info.TaskInfo/GetTaskDetails',
+                request_serializer=task__info__pb2.TaskDetailsRequest.SerializeToString,
+                response_deserializer=task__info__pb2.TaskDetailsResponse.FromString,
+                )
 
 
 class TaskInfoServicer(object):
@@ -52,6 +57,12 @@ class TaskInfoServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def GetTaskDetails(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_TaskInfoServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -69,6 +80,11 @@ def add_TaskInfoServicer_to_server(servicer, server):
                     servicer.GetCompletedTasks,
                     request_deserializer=task__info__pb2.TaskListRequest.FromString,
                     response_serializer=task__info__pb2.TaskListResponse.SerializeToString,
+            ),
+            'GetTaskDetails': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetTaskDetails,
+                    request_deserializer=task__info__pb2.TaskDetailsRequest.FromString,
+                    response_serializer=task__info__pb2.TaskDetailsResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -128,5 +144,22 @@ class TaskInfo(object):
         return grpc.experimental.unary_unary(request, target, '/pai.pouw.task_info.TaskInfo/GetCompletedTasks',
             task__info__pb2.TaskListRequest.SerializeToString,
             task__info__pb2.TaskListResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def GetTaskDetails(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/pai.pouw.task_info.TaskInfo/GetTaskDetails',
+            task__info__pb2.TaskDetailsRequest.SerializeToString,
+            task__info__pb2.TaskDetailsResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)

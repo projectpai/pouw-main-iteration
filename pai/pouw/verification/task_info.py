@@ -1,9 +1,13 @@
 import json
+from datetime import datetime
 
 import redis
-
-from pai.pouw.verification.task_info_pb2 import TaskListResponse, TaskRecord, Pagination, HTTPReturnCode
 from google.protobuf.timestamp_pb2 import Timestamp
+
+from pai.pouw.verification.task_info_pb2 import TaskListResponse, TaskRecord, Pagination, HTTPReturnCode, \
+    TaskDetailsResponse
+
+UNAVAILABLE = 'UNAVAILABLE'
 
 
 def get_waiting_tasks(page=1, per_page=20, redis_host='localhost', redis_port=6379):
@@ -14,7 +18,7 @@ def get_waiting_tasks(page=1, per_page=20, redis_host='localhost', redis_port=63
     result = [task.decode("utf-8").split('_')[2] for task in conn.scan_iter('task_submitted_*')
               if task.decode("utf-8").split('_')[2] not in training_tasks]
 
-    return prepare_tasks_for_grpc(result, page, per_page)
+    return pack_task_list(result, page, per_page, conn)
 
 
 def get_started_tasks(page=1, per_page=20, redis_host='localhost', redis_port=6379):
@@ -26,7 +30,7 @@ def get_started_tasks(page=1, per_page=20, redis_host='localhost', redis_port=63
     result = [task.decode("utf-8").split('_')[2] for task in conn.scan_iter('training_start_*')
               if task.decode("utf-8").split('_')[2] not in done_tasks]
 
-    return prepare_tasks_for_grpc(result, page, per_page)
+    return pack_task_list(result, page, per_page, conn)
 
 
 def get_completed_tasks(page=1, per_page=20, redis_host='localhost', redis_port=6379):
@@ -34,13 +38,47 @@ def get_completed_tasks(page=1, per_page=20, redis_host='localhost', redis_port=
     conn.ping()
 
     result = list(set([task.decode("utf-8").split('_')[2] for task in conn.keys('task_done_*')]))
-    return prepare_tasks_for_grpc(result, page, per_page)
+    return pack_task_list(result, page, per_page, conn)
 
 
-def get_task_info(task_id, redis_host='localhost', redis_port=6379):
+def get_task_details(task_id, redis_host='localhost', redis_port=6379):
     conn = redis.Redis(host=redis_host, port=redis_port)
     conn.ping()
 
+    task_details = get_task_full_info(task_id, conn)
+
+    if task_details is not None:
+        return TaskDetailsResponse(code=HTTPReturnCode.OK,
+                                   task_id=task_id, model_type=task_details['ml']['model']['type'],
+                                   nodes_no=sum([hu['nodes'] for hu in task_details['ml']['model']['hidden-units']]),
+                                   batch_size=task_details['ml']['optimizer']['batch-size'],
+                                   optimizer=task_details['ml']['optimizer']['type'],
+                                   created=get_grpc_timestamp(task_details),
+                                   dataset=task_details['ml']['dataset']['format'],
+                                   initializer=task_details['ml']['optimizer']['initializer']['name'],
+                                   loss_function=task_details['ml']['model']['loss'],
+                                   epochs=task_details['ml']['optimizer']['epochs'],
+                                   tau=task_details['ml']['optimizer']['tau'],
+                                   evaluation_metrics=task_details['ml']['evaluation-metrics'])
+
+    # task is not found
+    timestamp = Timestamp()
+    timestamp.GetCurrentTime()
+    return TaskDetailsResponse(code=HTTPReturnCode.NOT_FOUND,
+                               task_id=task_id, model_type=UNAVAILABLE,
+                               nodes_no=0,
+                               batch_size=0,
+                               optimizer=UNAVAILABLE,
+                               created=timestamp,
+                               dataset=UNAVAILABLE,
+                               initializer=UNAVAILABLE,
+                               loss_function=UNAVAILABLE,
+                               epochs=0,
+                               tau=0.0,
+                               evaluation_metrics=[])
+
+
+def get_task_full_info(task_id, conn):
     details = None
     for full_task in conn.scan_iter('task_submitted_{}_*'.format(task_id)):
         json_task_details = conn.mget(full_task.decode('utf-8'))
@@ -51,23 +89,25 @@ def get_task_info(task_id, redis_host='localhost', redis_port=6379):
     return details
 
 
-def prepare_tasks_for_grpc(task_ids, page=1, per_page=20, redis_host='localhost', redis_port=6379):
+def pack_task_list(task_ids, page, per_page, conn):
     task_list = []
-    timestamp = Timestamp()
     for task_id in task_ids:
-        task_details = get_task_info(task_id, redis_host, redis_port)
-        timestamp.GetCurrentTime()
+        task_details = get_task_full_info(task_id, conn)
         if task_details is not None:
+            proto_timestamp = get_grpc_timestamp(task_details)
+
             task_record = TaskRecord(task_id=task_id, model_type=task_details['ml']['model']['type'],
                                      nodes_no=sum([hu['nodes'] for hu in task_details['ml']['model']['hidden-units']]),
                                      batch_size=task_details['ml']['optimizer']['batch-size'],
                                      optimizer=task_details['ml']['optimizer']['type'],
-                                     created=timestamp)
+                                     created=proto_timestamp)
         else:
-            task_record = TaskRecord(task_id='', model_type='',
+            timestamp = Timestamp()
+            timestamp.GetCurrentTime()
+            task_record = TaskRecord(task_id=task_id, model_type=UNAVAILABLE,
                                      nodes_no=0,
                                      batch_size=0,
-                                     optimizer='',
+                                     optimizer=UNAVAILABLE,
                                      created=timestamp)
         task_list.append(task_record)
 
@@ -104,6 +144,21 @@ def prepare_tasks_for_grpc(task_ids, page=1, per_page=20, redis_host='localhost'
                             tasks=task_list[(page - 1) * per_page: min(page * per_page, task_list_len)])
 
 
+def get_grpc_timestamp(task_details):
+    try:
+        time_float = float(task_details['created'])
+        ts = datetime.utcfromtimestamp(time_float).timestamp()
+        seconds = int(ts)
+        nanos = int(ts % 1 * 1e9)
+        proto_timestamp = Timestamp(seconds=seconds, nanos=nanos)
+    except ValueError:
+        timestamp = Timestamp()
+        timestamp.GetCurrentTime()
+        proto_timestamp = timestamp
+    return proto_timestamp
+
+
+# to be used only for debugging purposes
 if __name__ == '__main__':
-    response = get_started_tasks()
+    response = get_task_details('0637cbf7c57ea775812d1976245e8603395f5fbebf0a5c2d67a6184979b6babf')
     print(1)

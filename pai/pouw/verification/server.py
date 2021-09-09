@@ -4,7 +4,7 @@ from concurrent import futures
 
 import grpc
 
-from pai.pouw.verification.task_info import get_waiting_tasks, get_started_tasks, get_completed_tasks
+from pai.pouw.verification.task_info import get_waiting_tasks, get_started_tasks, get_completed_tasks, get_task_details
 from pai.pouw.verification.task_info_pb2_grpc import TaskInfoServicer, add_TaskInfoServicer_to_server
 from pai.pouw.verification.verifier import verify_iteration
 from pai.pouw.verification.verifier_pb2_grpc import VerifierServicer, add_VerifierServicer_to_server
@@ -31,6 +31,9 @@ class TaskInfoServicer(TaskInfoServicer):
 
     def GetCompletedTasks(self, request, context):
         return get_completed_tasks(request.page, request.per_page, redis_host=self.redis_host, redis_port=self.redis_port)
+
+    def GetTaskDetails(self, request, context):
+        return get_task_details(request.task_id, redis_host=self.redis_host, redis_port=self.redis_port)
 
 
 def main():
