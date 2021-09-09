@@ -1,5 +1,6 @@
 import argparse
 import datetime
+import json
 import logging
 import os.path
 import pickle
@@ -132,6 +133,9 @@ class Client:
         self._task_id = response['task_id']
         self._cluster_address = response['cluster_response_address']
         self.logger.info('Collected task id data from cluster')
+        self.conn.set('task_submitted_{}_{}'.format(self._task_id, self._client_id),
+                      json.dumps(self._cluster_request_data))
+        self.logger.info('Added task information in database')
 
     def get_cluster_response(self):
         self.logger.info('Started waiting for cluster response')

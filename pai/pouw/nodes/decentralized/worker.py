@@ -433,7 +433,7 @@ class WorkerNode(CommitteeCandidate):
         os.remove(model_path)
         self.logger.info('Uploaded completed model')
 
-        return {
+        end_result = {
             'worker_signature': self.node_id,
             'j_val': metrics[1],
             'acc_val': metrics[0],
@@ -442,6 +442,10 @@ class WorkerNode(CommitteeCandidate):
             'bucket': BUCKET,
             'key': model_key
         }
+
+        self.conn.set('task_done_{}_{}'.format(self.task_id, self.node_id), json.dumps(end_result))
+
+        return end_result
 
     def report_end_of_epoch_data(self, epoch, epoch_time_started, validation_samples, validation_labels):
         # show epoch metrics
