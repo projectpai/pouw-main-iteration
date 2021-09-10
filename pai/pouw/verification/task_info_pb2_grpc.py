@@ -34,6 +34,11 @@ class TaskInfoStub(object):
                 request_serializer=task__info__pb2.TaskDetailsRequest.SerializeToString,
                 response_deserializer=task__info__pb2.TaskDetailsResponse.FromString,
                 )
+        self.GetTaskID = channel.unary_unary(
+                '/pai.pouw.task_info.TaskInfo/GetTaskID',
+                request_serializer=task__info__pb2.TaskIDRequest.SerializeToString,
+                response_deserializer=task__info__pb2.TaskIDResponse.FromString,
+                )
 
 
 class TaskInfoServicer(object):
@@ -63,6 +68,12 @@ class TaskInfoServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def GetTaskID(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_TaskInfoServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -85,6 +96,11 @@ def add_TaskInfoServicer_to_server(servicer, server):
                     servicer.GetTaskDetails,
                     request_deserializer=task__info__pb2.TaskDetailsRequest.FromString,
                     response_serializer=task__info__pb2.TaskDetailsResponse.SerializeToString,
+            ),
+            'GetTaskID': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetTaskID,
+                    request_deserializer=task__info__pb2.TaskIDRequest.FromString,
+                    response_serializer=task__info__pb2.TaskIDResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -161,5 +177,22 @@ class TaskInfo(object):
         return grpc.experimental.unary_unary(request, target, '/pai.pouw.task_info.TaskInfo/GetTaskDetails',
             task__info__pb2.TaskDetailsRequest.SerializeToString,
             task__info__pb2.TaskDetailsResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def GetTaskID(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/pai.pouw.task_info.TaskInfo/GetTaskID',
+            task__info__pb2.TaskIDRequest.SerializeToString,
+            task__info__pb2.TaskIDResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)

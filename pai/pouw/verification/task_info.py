@@ -5,9 +5,23 @@ import redis
 from google.protobuf.timestamp_pb2 import Timestamp
 
 from pai.pouw.verification.task_info_pb2 import TaskListResponse, TaskRecord, Pagination, HTTPReturnCode, \
-    TaskDetailsResponse
+    TaskDetailsResponse, TaskIDResponse
 
 UNAVAILABLE = 'UNAVAILABLE'
+
+
+def get_task_id(msg_id, redis_host='localhost', redis_port=6379):
+    conn = redis.Redis(host=redis_host, port=redis_port)
+    conn.ping()
+
+    json_maps = conn.mget(msg_id)
+    iterations_data = [json.loads(data) for data in json_maps if data is not None]
+    if len(iterations_data) == 0:
+        return TaskIDResponse(code=HTTPReturnCode.NOT_FOUND, task_id=UNAVAILABLE)
+    it_data = iterations_data[0]
+    task_id = it_data['task_id']
+
+    return TaskIDResponse(code=HTTPReturnCode.OK, task_id=task_id)
 
 
 def get_waiting_tasks(page=1, per_page=20, redis_host='localhost', redis_port=6379):
@@ -160,5 +174,5 @@ def get_grpc_timestamp(task_details):
 
 # to be used only for debugging purposes
 if __name__ == '__main__':
-    response = get_task_details('0637cbf7c57ea775812d1976245e8603395f5fbebf0a5c2d67a6184979b6babf')
+    response = get_task_id('it_res_b9fac25a0ecaa43e93b748cbee2763716ea484dcae95c786c231d1193541df22_0_133')
     print(1)
