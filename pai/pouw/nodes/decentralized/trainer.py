@@ -1,3 +1,5 @@
+# code adaptation from https://keras.io/guides/writing_a_training_loop_from_scratch/
+
 import time
 
 import tensorflow as tf
