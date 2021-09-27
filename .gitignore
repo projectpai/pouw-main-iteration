@@ -87,3 +87,5 @@ data/train-images-idx3-ubyte.gz
 data/train-labels-idx1-ubyte.gz
 output/*
 bucket/*
+.DS_Store
+/pai/pouw/verification/verifier_client/cmake
