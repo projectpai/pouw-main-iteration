@@ -458,6 +458,12 @@ class WorkerNode(CommitteeCandidate):
         # track finish time of epoch
         epoch_time_finished = datetime.datetime.now()
 
+        epoch_metrics = {'miner_id': self.node_id,
+                         'cross_entropy': metrics[1],
+                         'accuracy': metrics[0]}
+
+        self.conn.rpush('epoch_details_{}_{}'.format(self.task_id, epoch), json.dumps(epoch_metrics))
+
         if self.is_debug:
             with open(os.path.join(self.node_output_directory,
                                    'epoch_completed_{:03d}.json'.format(epoch)),
