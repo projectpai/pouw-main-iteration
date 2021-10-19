@@ -21,7 +21,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   syntax='proto3',
   serialized_options=None,
   create_key=_descriptor._internal_create_key,
-  serialized_pb=b'\n\x0ftask_info.proto\x12\x12pai.pouw.task_info\x1a\x1fgoogle/protobuf/timestamp.proto\"1\n\x0fTaskListRequest\x12\x0c\n\x04page\x18\x01 \x01(\r\x12\x10\n\x08per_page\x18\x02 \x01(\r\"\x97\x01\n\nTaskRecord\x12\x0f\n\x07task_id\x18\x01 \x01(\t\x12\x12\n\nmodel_type\x18\x02 \x01(\t\x12\x10\n\x08nodes_no\x18\x03 \x01(\x04\x12\x12\n\nbatch_size\x18\x04 \x01(\r\x12\x11\n\toptimizer\x18\x05 \x01(\t\x12+\n\x07\x63reated\x18\x06 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\"%\n\x12TaskDetailsRequest\x12\x0f\n\x07task_id\x18\x01 \x01(\t\"\xc8\x02\n\x13TaskDetailsResponse\x12\x30\n\x04\x63ode\x18\x01 \x01(\x0e\x32\".pai.pouw.task_info.HTTPReturnCode\x12\x0f\n\x07task_id\x18\x02 \x01(\t\x12\x12\n\nmodel_type\x18\x03 \x01(\t\x12\x10\n\x08nodes_no\x18\x04 \x01(\x04\x12\x12\n\nbatch_size\x18\x05 \x01(\r\x12\x11\n\toptimizer\x18\x06 \x01(\t\x12+\n\x07\x63reated\x18\x07 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x12\x0f\n\x07\x64\x61taset\x18\x08 \x01(\t\x12\x13\n\x0binitializer\x18\t \x01(\t\x12\x15\n\rloss_function\x18\n \x01(\t\x12\x0e\n\x06\x65pochs\x18\x0b \x01(\r\x12\x0b\n\x03tau\x18\x0c \x01(\x02\x12\x1a\n\x12\x65valuation_metrics\x18\r \x03(\t\"\xed\x01\n\nPagination\x12\x0c\n\x04page\x18\x01 \x01(\r\x12\x10\n\x08per_page\x18\x02 \x01(\r\x12\x12\n\npage_count\x18\x03 \x01(\r\x12\x13\n\x0btotal_count\x18\x04 \x01(\r\x12=\n\nnavigation\x18\x05 \x01(\x0b\x32).pai.pouw.task_info.Pagination.Navigation\x1aW\n\nNavigation\x12\x0c\n\x04self\x18\x01 \x01(\t\x12\r\n\x05\x66irst\x18\x02 \x01(\t\x12\x10\n\x08previous\x18\x03 \x01(\t\x12\x0c\n\x04next\x18\x04 \x01(\t\x12\x0c\n\x04last\x18\x05 \x01(\t\"\xa7\x01\n\x10TaskListResponse\x12\x30\n\x04\x63ode\x18\x01 \x01(\x0e\x32\".pai.pouw.task_info.HTTPReturnCode\x12\x32\n\npagination\x18\x02 \x01(\x0b\x32\x1e.pai.pouw.task_info.Pagination\x12-\n\x05tasks\x18\x03 \x03(\x0b\x32\x1e.pai.pouw.task_info.TaskRecord\"\x1f\n\rTaskIDRequest\x12\x0e\n\x06msg_id\x18\x01 \x01(\t\"S\n\x0eTaskIDResponse\x12\x30\n\x04\x63ode\x18\x01 \x01(\x0e\x32\".pai.pouw.task_info.HTTPReturnCode\x12\x0f\n\x07task_id\x18\x02 \x01(\t*\\\n\x0eHTTPReturnCode\x12\x11\n\rGENERAL_ERROR\x10\x00\x12\x07\n\x02OK\x10\xc8\x01\x12\x10\n\x0b\x42\x41\x44_REQUEST\x10\x90\x03\x12\x0e\n\tNOT_FOUND\x10\x94\x03\x12\x0c\n\x07INVALID\x10\xa6\x03\x32\xdd\x03\n\x08TaskInfo\x12\\\n\x0fGetWaitingTasks\x12#.pai.pouw.task_info.TaskListRequest\x1a$.pai.pouw.task_info.TaskListResponse\x12\\\n\x0fGetStartedTasks\x12#.pai.pouw.task_info.TaskListRequest\x1a$.pai.pouw.task_info.TaskListResponse\x12^\n\x11GetCompletedTasks\x12#.pai.pouw.task_info.TaskListRequest\x1a$.pai.pouw.task_info.TaskListResponse\x12\x61\n\x0eGetTaskDetails\x12&.pai.pouw.task_info.TaskDetailsRequest\x1a\'.pai.pouw.task_info.TaskDetailsResponse\x12R\n\tGetTaskID\x12!.pai.pouw.task_info.TaskIDRequest\x1a\".pai.pouw.task_info.TaskIDResponseb\x06proto3'
+  serialized_pb=b'\n\x0ftask_info.proto\x12\x12pai.pouw.task_info\x1a\x1fgoogle/protobuf/timestamp.proto\"1\n\x0fTaskListRequest\x12\x0c\n\x04page\x18\x01 \x01(\r\x12\x10\n\x08per_page\x18\x02 \x01(\r\"\x97\x01\n\nTaskRecord\x12\x0f\n\x07task_id\x18\x01 \x01(\t\x12\x12\n\nmodel_type\x18\x02 \x01(\t\x12\x10\n\x08nodes_no\x18\x03 \x01(\x04\x12\x12\n\nbatch_size\x18\x04 \x01(\r\x12\x11\n\toptimizer\x18\x05 \x01(\t\x12+\n\x07\x63reated\x18\x06 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\"%\n\x12TaskDetailsRequest\x12\x0f\n\x07task_id\x18\x01 \x01(\t\"3\n\x0eMetricAvgValue\x12\x0e\n\x06metric\x18\x01 \x01(\t\x12\x11\n\tavg_value\x18\x02 \x01(\x02\"R\n\tEpochInfo\x12\x10\n\x08\x65poch_no\x18\x01 \x01(\r\x12\x33\n\x07metrics\x18\x02 \x03(\x0b\x32\".pai.pouw.task_info.MetricAvgValue\"v\n\rEpochsDetails\x12\x14\n\x0ctotal_epochs\x18\x01 \x01(\r\x12\x18\n\x10\x63ompleted_epochs\x18\x02 \x01(\r\x12\x35\n\x0e\x65pochs_metrics\x18\x03 \x03(\x0b\x32\x1d.pai.pouw.task_info.EpochInfo\"\xf0\x02\n\x13TaskDetailsResponse\x12\x30\n\x04\x63ode\x18\x01 \x01(\x0e\x32\".pai.pouw.task_info.HTTPReturnCode\x12\x0f\n\x07task_id\x18\x02 \x01(\t\x12\x12\n\nmodel_type\x18\x03 \x01(\t\x12\x10\n\x08nodes_no\x18\x04 \x01(\x04\x12\x12\n\nbatch_size\x18\x05 \x01(\r\x12\x11\n\toptimizer\x18\x06 \x01(\t\x12+\n\x07\x63reated\x18\x07 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x12\x0f\n\x07\x64\x61taset\x18\x08 \x01(\t\x12\x13\n\x0binitializer\x18\t \x01(\t\x12\x15\n\rloss_function\x18\n \x01(\t\x12\x0b\n\x03tau\x18\x0b \x01(\x02\x12\x1a\n\x12\x65valuation_metrics\x18\x0c \x03(\t\x12\x36\n\x0b\x65pochs_info\x18\r \x01(\x0b\x32!.pai.pouw.task_info.EpochsDetails\"\xed\x01\n\nPagination\x12\x0c\n\x04page\x18\x01 \x01(\r\x12\x10\n\x08per_page\x18\x02 \x01(\r\x12\x12\n\npage_count\x18\x03 \x01(\r\x12\x13\n\x0btotal_count\x18\x04 \x01(\r\x12=\n\nnavigation\x18\x05 \x01(\x0b\x32).pai.pouw.task_info.Pagination.Navigation\x1aW\n\nNavigation\x12\x0c\n\x04self\x18\x01 \x01(\t\x12\r\n\x05\x66irst\x18\x02 \x01(\t\x12\x10\n\x08previous\x18\x03 \x01(\t\x12\x0c\n\x04next\x18\x04 \x01(\t\x12\x0c\n\x04last\x18\x05 \x01(\t\"\xa7\x01\n\x10TaskListResponse\x12\x30\n\x04\x63ode\x18\x01 \x01(\x0e\x32\".pai.pouw.task_info.HTTPReturnCode\x12\x32\n\npagination\x18\x02 \x01(\x0b\x32\x1e.pai.pouw.task_info.Pagination\x12-\n\x05tasks\x18\x03 \x03(\x0b\x32\x1e.pai.pouw.task_info.TaskRecord\"\x1f\n\rTaskIDRequest\x12\x0e\n\x06msg_id\x18\x01 \x01(\t\"S\n\x0eTaskIDResponse\x12\x30\n\x04\x63ode\x18\x01 \x01(\x0e\x32\".pai.pouw.task_info.HTTPReturnCode\x12\x0f\n\x07task_id\x18\x02 \x01(\t*\\\n\x0eHTTPReturnCode\x12\x11\n\rGENERAL_ERROR\x10\x00\x12\x07\n\x02OK\x10\xc8\x01\x12\x10\n\x0b\x42\x41\x44_REQUEST\x10\x90\x03\x12\x0e\n\tNOT_FOUND\x10\x94\x03\x12\x0c\n\x07INVALID\x10\xa6\x03\x32\xdd\x03\n\x08TaskInfo\x12\\\n\x0fGetWaitingTasks\x12#.pai.pouw.task_info.TaskListRequest\x1a$.pai.pouw.task_info.TaskListResponse\x12\\\n\x0fGetStartedTasks\x12#.pai.pouw.task_info.TaskListRequest\x1a$.pai.pouw.task_info.TaskListResponse\x12^\n\x11GetCompletedTasks\x12#.pai.pouw.task_info.TaskListRequest\x1a$.pai.pouw.task_info.TaskListResponse\x12\x61\n\x0eGetTaskDetails\x12&.pai.pouw.task_info.TaskDetailsRequest\x1a\'.pai.pouw.task_info.TaskDetailsResponse\x12R\n\tGetTaskID\x12!.pai.pouw.task_info.TaskIDRequest\x1a\".pai.pouw.task_info.TaskIDResponseb\x06proto3'
   ,
   dependencies=[google_dot_protobuf_dot_timestamp__pb2.DESCRIPTOR,])
 
@@ -60,8 +60,8 @@ _HTTPRETURNCODE = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=1175,
-  serialized_end=1267,
+  serialized_start=1472,
+  serialized_end=1564,
 )
 _sym_db.RegisterEnumDescriptor(_HTTPRETURNCODE)
 
@@ -212,6 +212,130 @@ _TASKDETAILSREQUEST = _descriptor.Descriptor(
 )
 
 
+_METRICAVGVALUE = _descriptor.Descriptor(
+  name='MetricAvgValue',
+  full_name='pai.pouw.task_info.MetricAvgValue',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  create_key=_descriptor._internal_create_key,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='metric', full_name='pai.pouw.task_info.MetricAvgValue.metric', index=0,
+      number=1, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=b"".decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='avg_value', full_name='pai.pouw.task_info.MetricAvgValue.avg_value', index=1,
+      number=2, type=2, cpp_type=6, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=316,
+  serialized_end=367,
+)
+
+
+_EPOCHINFO = _descriptor.Descriptor(
+  name='EpochInfo',
+  full_name='pai.pouw.task_info.EpochInfo',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  create_key=_descriptor._internal_create_key,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='epoch_no', full_name='pai.pouw.task_info.EpochInfo.epoch_no', index=0,
+      number=1, type=13, cpp_type=3, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='metrics', full_name='pai.pouw.task_info.EpochInfo.metrics', index=1,
+      number=2, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=369,
+  serialized_end=451,
+)
+
+
+_EPOCHSDETAILS = _descriptor.Descriptor(
+  name='EpochsDetails',
+  full_name='pai.pouw.task_info.EpochsDetails',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  create_key=_descriptor._internal_create_key,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='total_epochs', full_name='pai.pouw.task_info.EpochsDetails.total_epochs', index=0,
+      number=1, type=13, cpp_type=3, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='completed_epochs', full_name='pai.pouw.task_info.EpochsDetails.completed_epochs', index=1,
+      number=2, type=13, cpp_type=3, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='epochs_metrics', full_name='pai.pouw.task_info.EpochsDetails.epochs_metrics', index=2,
+      number=3, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=453,
+  serialized_end=571,
+)
+
+
 _TASKDETAILSRESPONSE = _descriptor.Descriptor(
   name='TaskDetailsResponse',
   full_name='pai.pouw.task_info.TaskDetailsResponse',
@@ -291,23 +415,23 @@ _TASKDETAILSRESPONSE = _descriptor.Descriptor(
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
     _descriptor.FieldDescriptor(
-      name='epochs', full_name='pai.pouw.task_info.TaskDetailsResponse.epochs', index=10,
-      number=11, type=13, cpp_type=3, label=1,
-      has_default_value=False, default_value=0,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
-    _descriptor.FieldDescriptor(
-      name='tau', full_name='pai.pouw.task_info.TaskDetailsResponse.tau', index=11,
-      number=12, type=2, cpp_type=6, label=1,
+      name='tau', full_name='pai.pouw.task_info.TaskDetailsResponse.tau', index=10,
+      number=11, type=2, cpp_type=6, label=1,
       has_default_value=False, default_value=float(0),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
     _descriptor.FieldDescriptor(
-      name='evaluation_metrics', full_name='pai.pouw.task_info.TaskDetailsResponse.evaluation_metrics', index=12,
-      number=13, type=9, cpp_type=9, label=3,
+      name='evaluation_metrics', full_name='pai.pouw.task_info.TaskDetailsResponse.evaluation_metrics', index=11,
+      number=12, type=9, cpp_type=9, label=3,
       has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='epochs_info', full_name='pai.pouw.task_info.TaskDetailsResponse.epochs_info', index=12,
+      number=13, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
@@ -323,8 +447,8 @@ _TASKDETAILSRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=317,
-  serialized_end=645,
+  serialized_start=574,
+  serialized_end=942,
 )
 
 
@@ -383,8 +507,8 @@ _PAGINATION_NAVIGATION = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=798,
-  serialized_end=885,
+  serialized_start=1095,
+  serialized_end=1182,
 )
 
 _PAGINATION = _descriptor.Descriptor(
@@ -442,8 +566,8 @@ _PAGINATION = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=648,
-  serialized_end=885,
+  serialized_start=945,
+  serialized_end=1182,
 )
 
 
@@ -488,8 +612,8 @@ _TASKLISTRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=888,
-  serialized_end=1055,
+  serialized_start=1185,
+  serialized_end=1352,
 )
 
 
@@ -520,8 +644,8 @@ _TASKIDREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1057,
-  serialized_end=1088,
+  serialized_start=1354,
+  serialized_end=1385,
 )
 
 
@@ -559,13 +683,16 @@ _TASKIDRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1090,
-  serialized_end=1173,
+  serialized_start=1387,
+  serialized_end=1470,
 )
 
 _TASKRECORD.fields_by_name['created'].message_type = google_dot_protobuf_dot_timestamp__pb2._TIMESTAMP
+_EPOCHINFO.fields_by_name['metrics'].message_type = _METRICAVGVALUE
+_EPOCHSDETAILS.fields_by_name['epochs_metrics'].message_type = _EPOCHINFO
 _TASKDETAILSRESPONSE.fields_by_name['code'].enum_type = _HTTPRETURNCODE
 _TASKDETAILSRESPONSE.fields_by_name['created'].message_type = google_dot_protobuf_dot_timestamp__pb2._TIMESTAMP
+_TASKDETAILSRESPONSE.fields_by_name['epochs_info'].message_type = _EPOCHSDETAILS
 _PAGINATION_NAVIGATION.containing_type = _PAGINATION
 _PAGINATION.fields_by_name['navigation'].message_type = _PAGINATION_NAVIGATION
 _TASKLISTRESPONSE.fields_by_name['code'].enum_type = _HTTPRETURNCODE
@@ -575,6 +702,9 @@ _TASKIDRESPONSE.fields_by_name['code'].enum_type = _HTTPRETURNCODE
 DESCRIPTOR.message_types_by_name['TaskListRequest'] = _TASKLISTREQUEST
 DESCRIPTOR.message_types_by_name['TaskRecord'] = _TASKRECORD
 DESCRIPTOR.message_types_by_name['TaskDetailsRequest'] = _TASKDETAILSREQUEST
+DESCRIPTOR.message_types_by_name['MetricAvgValue'] = _METRICAVGVALUE
+DESCRIPTOR.message_types_by_name['EpochInfo'] = _EPOCHINFO
+DESCRIPTOR.message_types_by_name['EpochsDetails'] = _EPOCHSDETAILS
 DESCRIPTOR.message_types_by_name['TaskDetailsResponse'] = _TASKDETAILSRESPONSE
 DESCRIPTOR.message_types_by_name['Pagination'] = _PAGINATION
 DESCRIPTOR.message_types_by_name['TaskListResponse'] = _TASKLISTRESPONSE
@@ -603,6 +733,27 @@ TaskDetailsRequest = _reflection.GeneratedProtocolMessageType('TaskDetailsReques
   # @@protoc_insertion_point(class_scope:pai.pouw.task_info.TaskDetailsRequest)
   })
 _sym_db.RegisterMessage(TaskDetailsRequest)
+
+MetricAvgValue = _reflection.GeneratedProtocolMessageType('MetricAvgValue', (_message.Message,), {
+  'DESCRIPTOR' : _METRICAVGVALUE,
+  '__module__' : 'task_info_pb2'
+  # @@protoc_insertion_point(class_scope:pai.pouw.task_info.MetricAvgValue)
+  })
+_sym_db.RegisterMessage(MetricAvgValue)
+
+EpochInfo = _reflection.GeneratedProtocolMessageType('EpochInfo', (_message.Message,), {
+  'DESCRIPTOR' : _EPOCHINFO,
+  '__module__' : 'task_info_pb2'
+  # @@protoc_insertion_point(class_scope:pai.pouw.task_info.EpochInfo)
+  })
+_sym_db.RegisterMessage(EpochInfo)
+
+EpochsDetails = _reflection.GeneratedProtocolMessageType('EpochsDetails', (_message.Message,), {
+  'DESCRIPTOR' : _EPOCHSDETAILS,
+  '__module__' : 'task_info_pb2'
+  # @@protoc_insertion_point(class_scope:pai.pouw.task_info.EpochsDetails)
+  })
+_sym_db.RegisterMessage(EpochsDetails)
 
 TaskDetailsResponse = _reflection.GeneratedProtocolMessageType('TaskDetailsResponse', (_message.Message,), {
   'DESCRIPTOR' : _TASKDETAILSRESPONSE,
@@ -656,8 +807,8 @@ _TASKINFO = _descriptor.ServiceDescriptor(
   index=0,
   serialized_options=None,
   create_key=_descriptor._internal_create_key,
-  serialized_start=1270,
-  serialized_end=1747,
+  serialized_start=1567,
+  serialized_end=2044,
   methods=[
   _descriptor.MethodDescriptor(
     name='GetWaitingTasks',

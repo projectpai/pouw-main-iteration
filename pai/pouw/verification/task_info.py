@@ -1,11 +1,12 @@
 import json
+import statistics
 from datetime import datetime
 
 import redis
 from google.protobuf.timestamp_pb2 import Timestamp
 
 from pai.pouw.verification.task_info_pb2 import TaskListResponse, TaskRecord, Pagination, HTTPReturnCode, \
-    TaskDetailsResponse, TaskIDResponse
+    TaskDetailsResponse, TaskIDResponse, EpochsDetails, EpochInfo, MetricAvgValue
 
 UNAVAILABLE = 'UNAVAILABLE'
 
@@ -55,6 +56,29 @@ def get_completed_tasks(page=1, per_page=20, redis_host='localhost', redis_port=
     return pack_task_list(result, page, per_page, conn)
 
 
+def get_completed_epochs(conn, task_id):
+    epoch_details_list = []
+    scanned_epochs = set()
+    for epoch in conn.scan_iter('epoch_details_{}_*'.format(task_id)):
+        epoch_no = epoch.decode("utf-8").split('_')[3]
+        if epoch_no not in scanned_epochs:
+            scanned_epochs.add(int(epoch_no))
+            metrics = [json.loads(row.decode("utf-8")) for row in conn.lrange(epoch, 0, -1)]
+            metric_avg_list = []
+            if len(metrics) == 0:
+                continue
+            for k in metrics[0]:
+                if k == 'miner_id':
+                    continue
+                metric_avg = MetricAvgValue(metric=k, avg_value=statistics.mean([m[k] for m in metrics]))
+                metric_avg_list.append(metric_avg)
+
+            epoch_info = EpochInfo(epoch_no=int(epoch_no), metrics=metric_avg_list)
+            epoch_details_list.append(epoch_info)
+
+    return len(scanned_epochs), sorted(epoch_details_list, key=lambda x: x.epoch_no)
+
+
 def get_task_details(task_id, redis_host='localhost', redis_port=6379):
     conn = redis.Redis(host=redis_host, port=redis_port)
     conn.ping()
@@ -62,6 +86,9 @@ def get_task_details(task_id, redis_host='localhost', redis_port=6379):
     task_details = get_task_full_info(task_id, conn)
 
     if task_details is not None:
+        completed_epochs_no, epochs_details_list = get_completed_epochs(conn, task_id)
+        epoch_details = EpochsDetails(total_epochs=task_details['ml']['optimizer']['epochs'],
+                                      completed_epochs=completed_epochs_no, epochs_metrics=epochs_details_list)
         return TaskDetailsResponse(code=HTTPReturnCode.OK,
                                    task_id=task_id, model_type=task_details['ml']['model']['type'],
                                    nodes_no=sum([hu['nodes'] for hu in task_details['ml']['model']['hidden-units']]),
@@ -71,13 +98,15 @@ def get_task_details(task_id, redis_host='localhost', redis_port=6379):
                                    dataset=task_details['ml']['dataset']['format'],
                                    initializer=task_details['ml']['optimizer']['initializer']['name'],
                                    loss_function=task_details['ml']['model']['loss'],
-                                   epochs=task_details['ml']['optimizer']['epochs'],
                                    tau=task_details['ml']['optimizer']['tau'],
-                                   evaluation_metrics=task_details['ml']['evaluation-metrics'])
+                                   evaluation_metrics=task_details['ml']['evaluation-metrics'],
+                                   epochs_info=epoch_details)
 
     # task is not found
     timestamp = Timestamp()
     timestamp.GetCurrentTime()
+
+    epoch_details = EpochsDetails(total_epochs=0, completed_epochs=0, epochs_metrics=[])
     return TaskDetailsResponse(code=HTTPReturnCode.NOT_FOUND,
                                task_id=task_id, model_type=UNAVAILABLE,
                                nodes_no=0,
@@ -87,9 +116,9 @@ def get_task_details(task_id, redis_host='localhost', redis_port=6379):
                                dataset=UNAVAILABLE,
                                initializer=UNAVAILABLE,
                                loss_function=UNAVAILABLE,
-                               epochs=0,
                                tau=0.0,
-                               evaluation_metrics=[])
+                               evaluation_metrics=[],
+                               epochs_info=epoch_details)
 
 
 def get_task_full_info(task_id, conn):
@@ -174,5 +203,5 @@ def get_grpc_timestamp(task_details):
 
 # to be used only for debugging purposes
 if __name__ == '__main__':
-    response = get_task_id('it_res_b9fac25a0ecaa43e93b748cbee2763716ea484dcae95c786c231d1193541df22_0_133')
+    response = get_task_details('68e292389fc8526e8268fafa0afd7c3b87e285a884f2e7e1ec58c9f1035ae8d1')
     print(1)
