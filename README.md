@@ -47,7 +47,7 @@ This should be used for testing and debugging purposes.
 
 1. Let's clone the PAICoin PoUW branch and the ML trainer extension by running the following commands:
     ~~~~zsh
-    git clone -b "pouw-q4" --single-branch https://github.com/projectpai/paicoin.git
+    git clone -b "pouw-q4-clean" --single-branch https://github.com/projectpai/paicoin.git
     git clone https://github.com/projectpai/pouw-main-iteration
     ~~~~
 
