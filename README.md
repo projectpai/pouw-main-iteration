@@ -236,7 +236,7 @@ This should be used for testing and debugging purposes.
 
     sudo mkdir /opt/paicoin
 
-    sudo git clone -b pouw-q4 --single-branch https://github.com/projectpai/paicoin.git /opt/paicoin
+    sudo git clone -b pouw-q4-clean --single-branch https://github.com/projectpai/paicoin.git /opt/paicoin
     
     cd /opt/paicoin
 
@@ -316,7 +316,7 @@ This should be used for testing and debugging purposes.
     ~~~~zsh
     git clone https://github.com/projectpai/pouw-main-iteration
 
-    cd /opt/main-iteration && \
+    cd /opt/pouw-main-iteration && \
         sed -i '1s/boto3//;' requirements.txt && \
         pip install -r requirements.txt && \
         python3 setup.py develop
