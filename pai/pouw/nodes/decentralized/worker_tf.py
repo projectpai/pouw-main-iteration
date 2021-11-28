@@ -10,7 +10,10 @@ import numpy as np
 
 class Trainer:
     def __init__(self):
+        self._residualGradients = None
+        self._tau = 10
         # add the default MNIST model
+
         inputs = keras.Input(shape=(784,), name="digits")
         x = layers.Dense(64, activation="relu", name="dense_1")(inputs)
         x = layers.Dense(64, activation="relu", name="dense_2")(x)
@@ -108,6 +111,22 @@ class Trainer:
     def val_metric(self, value):
         self._val_metric = value
 
+    @property
+    def residual_gradients(self):
+        return self._residualGradients
+
+    @residual_gradients.setter
+    def residual_gradients(self, value):
+        self._residualGradients = value
+
+    @property
+    def tau(self):
+        return self._tau
+
+    @tau.setter
+    def tau(self, value):
+        self._tau = value
+
     def prepare_datasets(self):
         # Prepare the training dataset.
         (x_train, y_train), (x_test, y_test) = keras.datasets.mnist.load_data()
@@ -128,7 +147,7 @@ class Trainer:
         self.train_dataset = train_dataset.shuffle(buffer_size=1024).batch(self.batch_size)
 
     def loop(self):
-        epochs = 2
+        epochs = 20
         for epoch in range(epochs):
             print("\nStart of epoch %d" % (epoch,))
             start_time = time.time()
@@ -139,7 +158,10 @@ class Trainer:
                     logits = self.model(x_batch_train, training=True)
                     loss_value = self.loss_fn(y_batch_train, logits)
                 grads = tape.gradient(loss_value, self.model.trainable_weights)
-                self.optimizer.apply_gradients(zip(grads, self.model.trainable_weights))
+
+                self.add_new_gradients_to_residuals(grads)
+                delta_local = self.compute_delta_local_and_update_residuals()
+                self.optimizer.apply_gradients(zip(delta_local, self.model.trainable_weights))
 
                 # Update training metric.
                 self.train_metric.update_state(y_batch_train, logits)
@@ -168,6 +190,23 @@ class Trainer:
             self.val_metric.reset_states()
             print("Validation acc: %.4f" % (float(val_acc),))
             print("Time taken: %.2fs" % (time.time() - start_time))
+
+    def compute_delta_local_and_update_residuals(self):
+        delta_local = []
+        for idx, res_grad in enumerate(self.residual_gradients):
+            upper_grads = tf.math.greater_equal(self.residual_gradients[idx], self.tau)
+            lower_grads = tf.math.less_equal(self.residual_gradients[idx], -self.tau)
+            delta_local_row = tf.cast(upper_grads, tf.float32) * self.tau + tf.cast(lower_grads, tf.float32) * -self.tau
+            self.residual_gradients[idx] = tf.math.subtract(self.residual_gradients[idx], delta_local_row)
+            delta_local.append(delta_local_row)
+        return delta_local
+
+    def add_new_gradients_to_residuals(self, grads):
+        if not self.residual_gradients:
+            self.residual_gradients = [tf.identity(grad) for grad in grads]
+        else:
+            for idx, grad in enumerate(grads):
+                self.residual_gradients[idx] = tf.math.add(self.residual_gradients[idx], grad)
 
 
 if __name__ == '__main__':
