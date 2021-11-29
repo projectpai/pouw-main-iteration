@@ -141,7 +141,7 @@ class Trainer:
         x_train = x_train[:-10000]
         y_train = y_train[:-10000]
         val_dataset = tf.data.Dataset.from_tensor_slices((x_val, y_val))
-        self.val_dataset = val_dataset.batch(64)
+        self.val_dataset = val_dataset.batch(self.batch_size)
 
         train_dataset = tf.data.Dataset.from_tensor_slices((x_train, y_train))
         self.train_dataset = train_dataset.shuffle(buffer_size=1024).batch(self.batch_size)

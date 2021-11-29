@@ -69,7 +69,7 @@ def main():
         node.miner = miner
     else:
         node.miner = MagicMock()
-        node.miner.announce_new_block = MagicMock(return_value=b'')
+        node.miner.announce_new_block = MagicMock(return_value='')
         node.miner.mine_announced_block = MagicMock(return_value=(False, None))
 
     node.start_task_listening()

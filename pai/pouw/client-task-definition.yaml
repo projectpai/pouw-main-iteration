@@ -25,7 +25,7 @@ ml:
       momentum: 0.0
     tau: 12.0
     epochs: 30
-    batch-size: 100
+    batch-size: 64
     initializer:
       name: Xavier
       parameters:
