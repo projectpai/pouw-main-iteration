@@ -97,8 +97,8 @@ def delete_saved(filename, key, bucket_used=None):
 
 def get_batch_hash(data, label):
     return hashlib.sha256(
-        str(np.array2string(data.asnumpy(), formatter={'float_kind': lambda x: "%.4f" % x}) +
-            np.array2string(label.asnumpy(),
+        str(np.array2string(data.numpy(), formatter={'float_kind': lambda x: "%.4f" % x}) +
+            np.array2string(label.numpy(),
                             formatter={'float_kind': lambda x: "%.4f" % x})).encode('latin1')).hexdigest()
 
 

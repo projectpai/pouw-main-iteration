@@ -3,7 +3,6 @@ import argparse
 import datetime
 import functools
 import logging
-import math
 import os
 import pickle
 import random
@@ -11,8 +10,6 @@ import shutil
 import sys
 import time
 import uuid
-from copy import copy
-from functools import reduce
 from hashlib import sha256
 from itertools import cycle
 
@@ -137,7 +134,7 @@ class CommitteeCandidate:
             self.distribute_training_segments(segments)
 
         self.logger.info("Started ml network initialization")
-        self.initialize_network()
+        # self.initialize_network()
         samples, labels = self.collect_training_segments()
 
         self.synchronize_training_nodes()

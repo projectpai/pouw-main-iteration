@@ -15,9 +15,10 @@ import numpy as np
 import redis
 import yaml
 from mxnet import gluon
+from tensorflow import keras
+
 from pai import POUW_ROOT_PATH
-from pai.pouw.constants import DATA_DIRECTORY, OUTPUT_DIRECTORY, CLIENT_TASK_CHANNEL, NUMBER_OF_DATASET_SEGMENTS, BUCKET
-from pai.pouw.nodes.decentralized.worker import transformer
+from pai.pouw.constants import OUTPUT_DIRECTORY, CLIENT_TASK_CHANNEL, NUMBER_OF_DATASET_SEGMENTS, BUCKET
 from pai.pouw.utils import ColoredConsoleHandler
 
 
@@ -62,8 +63,18 @@ class Client:
 
         self._worker_output_directory = worker_output_path
 
+        self._batch_size = 64
+
         if self.is_debug:
             self.set_file_log()
+
+    @property
+    def batch_size(self):
+        return self._batch_size
+
+    @batch_size.setter
+    def batch_size(self, value):
+        self._batch_size = value
 
     @property
     def worker_output_directory(self):
@@ -158,6 +169,7 @@ class Client:
         self.logger.info('Send dataset hashes for allocating')
 
     def load_dataset(self):
+        self.batch_size = int(self._cluster_request_data['ml']['optimizer']['batch-size'])
         if self._cluster_request_data['ml']['dataset']['format'] == 'CSV':
             train_data = self._load_csv_dataset()
         else:
@@ -166,12 +178,21 @@ class Client:
         return train_data
 
     def _load_mnist_dataset(self):
-        train_data = gluon.data.DataLoader(
-            gluon.data.vision.MNIST(DATA_DIRECTORY, train=True, transform=transformer),
-            batch_size=self._cluster_request_data['ml']['optimizer']['batch-size'],
-            shuffle=True, last_batch='discard')
-        # TODO merge training and test data
-        return train_data
+        # train_data = gluon.data.DataLoader(
+        #     gluon.data.vision.MNIST(DATA_DIRECTORY, train=True, transform=transformer),
+        #     batch_size=self._cluster_request_data['ml']['optimizer']['batch-size'],
+        #     shuffle=True, last_batch='discard')
+        (x_train, y_train), (x_test, y_test) = keras.datasets.mnist.load_data()
+        x_train = np.reshape(x_train, (-1, 784))
+        x_test = np.reshape(x_test, (-1, 784))
+
+        # throw away the last unfinished batch if there is one
+        x_train = x_train[0: (x_train.shape[0] // self.batch_size) * self.batch_size]
+        # x_train = x_train.reshape(x_train.shape[0] // self.batch_size, -1, x_train.shape[1])
+        y_train = y_train[0: (y_train.shape[0] // self.batch_size) * self.batch_size]
+        # y_train = y_train.reshape(y_train.shape[0] // self.batch_size, -1)
+
+        return np.vstack([x_train, x_test]), np.append(y_train, y_test)
 
     def _load_csv_dataset(self):
         csv_path = self.get_csv_path()
@@ -206,15 +227,8 @@ class Client:
 
     def get_dataset_hashes(self):
         self.logger.info('Started generating dataset segment hashes')
-        train_data = self.load_dataset()
+        data, label = self.load_dataset()
 
-        data, label = [], []
-        for batch_data, batch_label in train_data:
-            data.append(batch_data.asnumpy())
-            label.append(batch_label.asnumpy())
-
-        data = np.stack(data)
-        label = np.stack(label)
         # split batches into 10 groups and discard the rest
         max_index = int(data.shape[0] / NUMBER_OF_DATASET_SEGMENTS) * NUMBER_OF_DATASET_SEGMENTS
         step = max_index // NUMBER_OF_DATASET_SEGMENTS

@@ -9,6 +9,11 @@ import time
 from copy import copy
 from distutils.util import strtobool
 
+import tensorflow as tf
+from tensorflow import keras
+from tensorflow.keras import layers
+
+
 import mxnet as mx
 import numpy as np
 import pai.pouw.message_map
@@ -118,248 +123,229 @@ class WorkerNode(CommitteeCandidate):
                                         otypes=[np.uint32])
         self.one_setter = np.vectorize(lambda int_type: int_type | (1 << 31), otypes=[np.uint32])
 
-        self.ctx = context
-
-        self.network_time_to_pick_next_msg = None
-
         # the hash of the current batch
         self.batch_hash = None
-
-        # the current state of the model
-        self.net_hash_start = None
-        self.net_hash_end = None
 
         # set the threshold for residual gradient
         self.tau = None
 
-        # Collect all parameters from net and its children, then initialize them.
-        self.net = None
-        # self.net.hybridize()  # for performance reasons
-
-        self.trainer = None
-
         self._peer_msg_ids = []
         self._consumed_peer_msg_ids = []
-
-        # Add metrics: accuracy and cross-entropy loss
-        accuracy = mx.metric.Accuracy()
-        ce_loss = mx.metric.CrossEntropy()
-        self.comp_metric = mx.metric.CompositeEvalMetric([accuracy, ce_loss])
-
-        self.loss = gluon.loss.SoftmaxCrossEntropyLoss()
-
-        # variables needed for indexing
-        self.gradients_sizes = None
-
-        # cumulative sum of gradients used in indexing
-        self.gradients_cumulative = None
-
-        # gradients blueprint
-        self.gradients_blueprint = []
-        self.grads = None
-
-        # flag for showing that this is the first batch
-        # (some network parameters are lazily initialized, so we need this)
-        self.gradient_residual = None
 
         self.last_updated_iteration_index = 0
         self.global_iteration_index = 0
 
         self.message_key_template = 'it_res_{}_{}_{}'
         self.node_output_directory = None
-        self._model_path = None
 
         self.miner = None
 
+        # NEW CODE --------------------------------------------
+        self._residual_gradients = None
+        self._tau = 10
+        # add the default MNIST model
+
+        inputs = keras.Input(shape=(784,), name="digits")
+        x = layers.Dense(64, activation="relu", name="dense_1")(inputs)
+        x = layers.Dense(64, activation="relu", name="dense_2")(x)
+        outputs = layers.Dense(10, name="predictions")(x)
+        self._model = keras.Model(inputs=inputs, outputs=outputs)
+
+        # set the default optimizer
+        self._optimizer = keras.optimizers.SGD(learning_rate=1e-3)
+
+        # set the loss function
+        self._loss_fn = keras.losses.SparseCategoricalCrossentropy(from_logits=True)
+
+        # prepare the metrics
+        self._train_metric = keras.metrics.SparseCategoricalAccuracy()
+        self._val_metric = keras.metrics.SparseCategoricalAccuracy()
+
+        # set the batch size
+        self._batch_size = 64
+
+        # datasets
+        self._train_dataset = None
+        self._val_dataset = None
+        self._test_dataset = None
+
+    @property
+    def model(self):
+        return self._model
+
+    @model.setter
+    def model(self, value):
+        self._model = value
+
+    @property
+    def train_dataset(self):
+        return self._train_dataset
+
+    @train_dataset.setter
+    def train_dataset(self, value):
+        self._train_dataset = value
+
+    @property
+    def val_dataset(self):
+        return self._val_dataset
+
+    @val_dataset.setter
+    def val_dataset(self, value):
+        self._val_dataset = value
+
+    @property
+    def test_dataset(self):
+        return self._test_dataset
+
+    @test_dataset.setter
+    def test_dataset(self, value):
+        self._test_dataset = value
+
+    @property
+    def optimizer(self):
+        return self._optimizer
+
+    @optimizer.setter
+    def optimizer(self, value):
+        self._optimizer = value
+
+    @property
+    def loss_fn(self):
+        return self._loss_fn
+
+    @loss_fn.setter
+    def loss_fn(self, value):
+        self.loss_fn = value
+
+    @property
+    def batch_size(self):
+        return self._batch_size
+
+    @batch_size.setter
+    def batch_size(self, value):
+        self._batch_size = value
+
+    @property
+    def train_metric(self):
+        return self._train_metric
+
+    @train_metric.setter
+    def train_metric(self, value):
+        self._train_metric = value
+
+    @property
+    def val_metric(self):
+        return self._val_metric
+
+    @val_metric.setter
+    def val_metric(self, value):
+        self._val_metric = value
+
+    @property
+    def residual_gradients(self):
+        return self._residual_gradients
+
+    @residual_gradients.setter
+    def residual_gradients(self, value):
+        self._residual_gradients = value
+
+    @property
+    def tau(self):
+        return self._tau
+
+    @tau.setter
+    def tau(self, value):
+        self._tau = value
+
     def reset_network_state(self):
         # Collect all parameters from net and its children, then initialize them.
-        self.net = None
-
-        self.net_hash_start = None
-        self.net_hash_end = None
-
         self._peer_msg_ids = []
         self._consumed_peer_msg_ids = []
-
-        # Add metrics: accuracy and cross-entropy loss
-        accuracy = mx.metric.Accuracy()
-        ce_loss = mx.metric.CrossEntropy()
-        self.comp_metric = mx.metric.CompositeEvalMetric([accuracy, ce_loss])
-
-        self.loss = gluon.loss.SoftmaxCrossEntropyLoss()
-
-        # variables needed for indexing
-        self.gradients_sizes = None
-
-        # cumulative sum of gradients used in indexing
-        self.gradients_cumulative = None
-
-        # gradients blueprint
-        self.gradients_blueprint = []
-
-        # flag for showing that this is the first batch
-        # (some network parameters are lazily initialized, so we need this)
-        self.gradient_residual = None
-        self.grads = None
-
         self.last_updated_iteration_index = 0
         self.global_iteration_index = 0
-
-        self._model_path = None
-
         self.tau = None
 
     def get_global_iteration_index(self):
         return self.conn.incr('{}_global_iteration_index'.format(self.task_id))
 
-    def train(self, training_samples, training_labels, validation_samples, validation_labels):
+    def compute_delta_local_and_update_residuals(self):
+        delta_local = []
+        for idx, res_grad in enumerate(self.residual_gradients):
+            upper_grads = tf.math.greater_equal(self.residual_gradients[idx], self.tau)
+            lower_grads = tf.math.less_equal(self.residual_gradients[idx], -self.tau)
+            delta_local_row = tf.cast(upper_grads, tf.float32) * self.tau + tf.cast(lower_grads, tf.float32) * -self.tau
+            self.residual_gradients[idx] = tf.math.subtract(self.residual_gradients[idx], delta_local_row)
+            delta_local.append(delta_local_row)
+        return delta_local
+
+    def add_new_gradients_to_residuals(self, grads):
+        if not self.residual_gradients:
+            self.residual_gradients = [tf.identity(grad) for grad in grads]
+        else:
+            for idx, grad in enumerate(grads):
+                self.residual_gradients[idx] = tf.math.add(self.residual_gradients[idx], grad)
+
+    def train(self):
 
         metrics = [0, 0, 0]
+        model_path = os.path.join(self.node_output_directory, 'model')
         # ITERATIONS PHASE
         for epoch in range(self.task_data['ml']['optimizer']['epochs']):
-            data = None
-            label = None
-            self.grads = None
-
-            # track start time of epoch
-            epoch_time_started = datetime.datetime.now()
-
-            # self.timedelta = LiveMedian()
-
-            for i, (data, label) in enumerate(zip(training_samples, training_labels)):
-
-                # START OF ITERATION
-                self.comp_metric.reset()
-                # track start time
-                time_started = datetime.datetime.now()
-
-                # Copy data to ctx if necessary
-                data = mx.nd.array(data)
-                label = mx.nd.array(label)
-
-                data = data.as_in_context(self.ctx)
-                label = label.as_in_context(self.ctx)
-
-                # Calculate the mini-batch hash
-                self.batch_hash = get_batch_hash(data, label)
-
-                # if it's not the first batch, tell Gluon that we will modify gradients
-                if not self.grads:
-                    if self.gradient_residual:
-                        self.trainer.allreduce_grads()
-                    with autograd.record():
-                        output = self.net(data)
-                        L = self.loss(output, label)
-
-                        # do back propagation
-                        L.backward()
-
-                    self.grads = [g.grad(self.ctx) for g in self.net.collect_params().values()
-                                  if g._grad is not None]
-
-                    if not self.gradients_sizes:
-                        self.gradients_sizes = [g.size for g in self.grads]
-
-                    if self.gradients_cumulative is None:
-                        self.gradients_cumulative = np.insert(np.cumsum(self.gradients_sizes), 0, 0)[
-                                                    :-1]
-                    if self.gradients_blueprint is None or len(self.gradients_blueprint) == 0:
-                        self.gradients_blueprint = [g.shape for g in self.grads]
+            start_time = time.time()
+            for step, (x_batch_train, y_batch_train) in enumerate(self.train_dataset):
+                self.batch_hash = get_batch_hash(x_batch_train, y_batch_train)
+                with tf.GradientTape() as tape:
+                    logits = self.model(x_batch_train, training=True)
+                    loss_value = self.loss_fn(y_batch_train, logits)
+                grads = tape.gradient(loss_value, self.model.trainable_weights)
 
                 # save the model initial parameters
-                model_path = os.path.join(self.node_output_directory, 'model')
-                self.net.save_parameters(model_path + '-0000.params')
-                self.net_hash_start = file_sha256_hexdigest(model_path + '-0000.params')
+                # self.model.save(model_path + '_a')
+                # model_hash_a = file_sha256_hexdigest(os.path.join(model_path + '_a', 'saved_model.pb'))
 
-                self.receive_and_apply_peer_gradients(data, epoch, self.grads, label)
+                # UNCOMMENT AND IMPLEMENT: self.receive_and_apply_peer_gradients(data, epoch, self.grads, label)
 
-                # if it's not the first batch, tell Gluon that we will modify gradients
-                if self.gradient_residual:
-                    self.trainer.allreduce_grads()
+                self.add_new_gradients_to_residuals(grads)
+                delta_local = self.compute_delta_local_and_update_residuals()
 
-                with autograd.record():
-                    output = self.net(data)
-                    L = self.loss(output, label)
+                # build message map
+                # local_message_map = np.append(local_message_map,
+                #                               build_message_map(idx, self.gradients_cumulative,
+                #                                                 local_delta_positive.asnumpy(),
+                #                                                 local_delta_negative.asnumpy(),
+                #                                                 self.zero_setter,
+                #                                                 self.one_setter))
 
-                    # do back propagation
-                    L.backward()
+                self.optimizer.apply_gradients(zip(delta_local, self.model.trainable_weights))
 
-                # collect gradients
-                self.grads = [g.grad(self.ctx) for g in self.net.collect_params().values()
-                              if g._grad is not None]
+                # Update training metric.
+                self.train_metric.update_state(y_batch_train, logits)
 
-                if not self.gradients_sizes:
-                    self.gradients_sizes = [g.size for g in self.grads]
-                    self.gradients_cumulative = np.insert(np.cumsum(self.gradients_sizes), 0, 0)[
-                                                :-1]
+                # overdrive_index = pai.pouw.overdrive.calculate_overdrive(initial_local_gradients,
+                #                                                          local_map,
+                #                                                          self.tau)
 
-                # store the gradients blueprint
-                if len(self.gradients_blueprint) == 0:
-                    self.gradients_blueprint = [g.shape for g in self.grads]
 
-                # handle gradient residual
-                if not self.gradient_residual:
-                    # if its first batch
-                    self.gradient_residual = [grd.copy() for grd in self.grads]
-                else:
-                    for idx_grad, grad in enumerate(self.grads):
-                        self.gradient_residual[idx_grad] += self.grads[idx_grad]
-
-                initial_local_gradients = pai.pouw.overdrive.clone_gradients(self.grads)
-
-                local_message_map = np.empty([0], dtype=np.uint32)
-                local_map = []
-
-                for idx, grad in enumerate(self.grads):
-                    # build arrays with ones for values that exceed tau and -tau
-                    local_delta_positive = self.gradient_residual[idx] > self.tau
-                    local_delta_negative = self.gradient_residual[idx] < -self.tau
-
-                    # build the local weight updates array
-                    local_delta = local_delta_positive * self.tau + local_delta_negative * -self.tau
-
-                    # adjust gradient residual accordingly
-                    self.gradient_residual[idx] -= local_delta.copy()
-                    local_map.append(local_delta.copy())
-
-                    # build message map
-                    local_message_map = np.append(local_message_map,
-                                                  build_message_map(idx, self.gradients_cumulative,
-                                                                    local_delta_positive.asnumpy(),
-                                                                    local_delta_negative.asnumpy(),
-                                                                    self.zero_setter,
-                                                                    self.one_setter))
-
-                # update gradients
-                for idx, grad in enumerate(self.grads):
-                    grad *= 0
-                    grad += local_map[idx].as_in_context(self.ctx)
-
-                # take a gradient step with batch_size equal to data.shape[0]
-                self.trainer.update(data.shape[0])
-
-                overdrive_index = pai.pouw.overdrive.calculate_overdrive(initial_local_gradients,
-                                                                         local_map,
-                                                                         self.tau)
-
-                # update the network to calculate final loss and accuracy
-                output = self.net(data)
-
-                # update metrics
-                self.comp_metric.update([label], [output.softmax()])
-
-                # report intermediary metrics
-                names, metrics = self.comp_metric.get()
+                # # update the network to calculate final loss and accuracy
+                # output = self.model()
+                #
+                # # update metrics
+                # self.comp_metric.update([x_batch_train], [output.softmax()])
+                #
+                # # report intermediary metrics
+                # names, metrics = self.comp_metric.get()
 
                 mining_report = ''
+                local_message_map = []
                 # update redis if there were any updates
                 if len(local_message_map) > 0:
-                    self.net.save_parameters(model_path + '-0001.params')
-                    self.net_hash_end = file_sha256_digest(model_path + '-0001.params')
+                    self.model.save(model_path + '_b')
+                    model_hash_b = file_sha256_digest(os.path.join(model_path + '_b', 'saved_model.pb'))
 
                     znb_hash = self.miner.announce_new_block()
-                    m_key = self.send_gradient_updates(epoch, local_message_map.tolist(),
-                                                       metrics, overdrive_index, time_started, znb_hash)
+                    m_key = 'test_key'
+                    # m_key = self.send_gradient_updates(epoch, local_message_map.tolist(),
+                    #                                    metrics, overdrive_index, time_started, znb_hash)
 
                     # mining takes place after sending the iteration message
                     # first, one must find out how much time is allowed to pick the next message
@@ -371,19 +357,18 @@ class WorkerNode(CommitteeCandidate):
                     bucket_used = None
                     try:
                         block_hex_data, nonce = self.miner.mine_announced_block(m_key.encode('latin1'), b'',
-                                                                                self.net_hash_end,
-                                                                                local_message_map.tolist())
+                                                                                model_hash_b,
+                                                                                local_message_map)
                         if nonce is not None:
                             mining_report = " nonce=%s" % binascii.hexlify(nonce).decode('latin1')
 
                         if block_hex_data:
                             features_filename, features_template, labels_filename, labels_template = \
-                                save_successful_batch(data, label, self.batch_hash)
+                                save_successful_batch(x_batch_train, y_batch_train, self.batch_hash)
 
                             model_filename, model_template, bucket_used = save_successful_model(
                                 os.path.join(self.node_output_directory, 'model'),
-                                self.task_id,
-                                self.net_hash_start, self.node_id)
+                                self.task_id, model_hash_a, self.node_id)
                             self.logger.debug('Uploaded {} to bucket {} as key {}'.format(model_filename,
                                                                                           bucket_used,
                                                                                           model_template))
@@ -391,54 +376,61 @@ class WorkerNode(CommitteeCandidate):
                             mining_report += " Mining successful!"
                     except JSONRPCException as e:
                         self.logger.warning('[Epoch %02d Batch %03d] Mining error: %s' % (
-                            epoch, i, e.error['message']))
+                            epoch, step, e.error['message']))
                     except Exception as e:
                         self.logger.warning('[Epoch %02d Batch %03d] Mining error: %s' % (
-                            epoch, i, e))
+                            epoch, step, e))
 
                 self.logger.debug(
-                    '[Epoch %02d Batch %03d] Training: %s=%f %s=%f' % (
-                        epoch, i, names[0], metrics[0],
-                        names[1], metrics[1]) + mining_report)
+                    '[Epoch %02d Batch %03d] Training: loss= %f accuracy= %.4f' % (
+                        epoch, step, float(loss_value), float(self.train_metric.result())) + mining_report)
 
                 # END OF ITERATION
                 # clean up
-                if os.path.isfile(model_path + '-0000.params'):
-                    os.remove(model_path + '-0000.params')
-                if os.path.isfile(model_path + '-0001.params'):
-                    os.remove(model_path + '-0001.params')
+                # shutil.rmtree(model_path + '_a', ignore_errors=True)
+                # shutil.rmtree(model_path + '_b', ignore_errors=True)
 
-            self.end_of_epoch_node_synchronization(data, epoch, self.grads, label)
-            self.report_end_of_epoch_data(epoch, epoch_time_started, validation_samples, validation_labels)
-            self.logger.info('Completed {} epoch'.format(epoch))
+                # Display metrics at the end of each epoch.
+            train_acc = self.train_metric.result()
+            print("Training acc over epoch: %.4f" % (float(train_acc),))
+
+            # Reset training metrics at the end of each epoch
+            self.train_metric.reset_states()
+
+            # Run a validation loop at the end of each epoch.
+            for x_batch_val, y_batch_val in self.val_dataset:
+                val_logits = self.model(x_batch_val, training=False)
+                # Update val metrics
+                self.val_metric.update_state(y_batch_val, val_logits)
+            val_acc = self.val_metric.result()
+            self.val_metric.reset_states()
+            print("Validation acc: %.4f" % (float(val_acc),))
+            print("Time taken: %.2fs" % (time.time() - start_time))
+
+            # self.end_of_epoch_node_synchronization(x_batch_train, epoch, self.grads, y_batch_train)
+            # self.report_end_of_epoch_data(epoch, start_time, self.val_dataset, validation_labels)
+            # self.logger.info('Completed {} epoch'.format(epoch))
             # mining also takes place after sending the epoch message
             # first, one must find out how much time is allowed to pick the next message
             # allowed_time = self.get_allowed_next_message_time()
             # self.logger.info('[EPOCH %d ] Time to pick next message: %f s' % (epoch, allowed_time))
 
-        model_path = os.path.join(self.node_output_directory, 'model')
-        self.logger.info('Started saving model to disk')
-
-        model_path = model_path + '-final.params'
-        self.net.save_parameters(model_path)
-        self.net_hash_start = file_sha256_hexdigest(model_path)
-        self.logger.info('Completed saving model to disk')
+        self.model.save(model_path + '_f')
+        self.logger.info('Saved model to disk')
+        model_hash_f = file_sha256_hexdigest(os.path.join(model_path + '_f', 'saved_model.pb'))
 
         model_key = '{}_{}_{}.params'.format(self.task_id, self.node_id, self.node_id)
-        self.logger.info('Started saving model to bucket')
 
-        # here we should save to a path
-        shutil.copyfile(model_path, os.path.join(BUCKET, model_key))
-        # clean up after model upload
-        os.remove(model_path)
-        self.logger.info('Uploaded completed model')
+        shutil.copytree(model_path + '_f', os.path.join(BUCKET, model_key))
+        shutil.rmtree(model_path + '_f', ignore_errors=True)
+        self.logger.info('Uploaded final model to bucket')
 
         end_result = {
             'worker_signature': self.node_id,
             'j_val': metrics[1],
             'acc_val': metrics[0],
             'worker_id': self.node_id,
-            'model_hash': self.net_hash_start,
+            'model_hash': model_hash_f,
             'bucket': BUCKET,
             'key': model_key
         }
@@ -507,7 +499,7 @@ class WorkerNode(CommitteeCandidate):
                    'epoch': epoch,
                    'tau': self.tau,
                    'znb_hash': znb_hash,
-                   'model_hash': self.net_hash_start,
+                   'model_hash': self.model_hash_a,
                    'residual_hash': sha256_hexdigest(serialised_residual),
                    'peer_msg_hash': sha256_hexdigest(serialised_peers),
                    'peer_msg_ids': self._peer_msg_ids,
@@ -598,6 +590,7 @@ class WorkerNode(CommitteeCandidate):
 
     def start_training(self, samples, labels):
         self.tau = self.task_data['ml']['optimizer']['tau']
+        self.batch_size = self.task_data['ml']['optimizer']['batch-size']
         validation_size = self.task_data['ml']['validation']['strategy']['size']
 
         index_split = int(validation_size * len(samples))
@@ -608,7 +601,13 @@ class WorkerNode(CommitteeCandidate):
         validation_samples = samples[-index_split:]
         validation_labels = labels[-index_split:]
 
-        training_result = self.train(training_samples, training_labels, validation_samples, validation_labels)
+        val_dataset = tf.data.Dataset.from_tensor_slices((validation_samples, validation_labels))
+        self.val_dataset = val_dataset.batch(self.batch_size)
+
+        train_dataset = tf.data.Dataset.from_tensor_slices((training_samples, training_labels))
+        self.train_dataset = train_dataset.shuffle(buffer_size=1024).batch(self.batch_size)
+
+        training_result = self.train()
 
         self.reset_network_state()
         return training_result
