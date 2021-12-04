@@ -1,6 +1,7 @@
 import argparse
 import binascii
 import datetime
+import hashlib
 import json
 import os.path
 import pickle
@@ -300,11 +301,11 @@ class WorkerNode(CommitteeCandidate):
                 grads = tape.gradient(loss_value, self.model.trainable_weights)
 
                 # save the model initial parameters
-                # self.model.save(model_path + '_a')
+                weights_a = np.concatenate([w.numpy().ravel() for w in self.model.weights]).ravel()
+                model_hash_a = hashlib.sha256(pickle.dumps(weights_a, protocol=0)).hexdigest()
                 # model_hash_a = file_sha256_hexdigest(os.path.join(model_path + '_a', 'saved_model.pb'))
 
                 # UNCOMMENT AND IMPLEMENT: self.receive_and_apply_peer_gradients(data, epoch, self.grads, label)
-
                 self.add_new_gradients_to_residuals(grads)
                 delta_local = self.compute_delta_local_and_update_residuals()
 
