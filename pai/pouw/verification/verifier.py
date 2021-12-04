@@ -98,7 +98,7 @@ def verify_iteration(msg_history_id, msg_id, nonce, block_header, redis_host='lo
         return verifier_pb2.Response(code=error_code,
                                      description=reason)
 
-    model_template = 'models/' + task_id + '/' + worker_id + '/' + model_hash + '/model.params'
+    model_template = 'models/' + task_id + '/' + worker_id + '/' + model_hash + '/model'
     print('Model: %s' % model_template)
 
     try:
@@ -289,8 +289,8 @@ def verify_iteration(msg_history_id, msg_id, nonce, block_header, redis_host='lo
     # verify nonce
     os.makedirs(TEMP_FOLDER, exist_ok=True)
 
-    ver_net.save_parameters(TEMP_FOLDER + 'end_it_model.params')
-    end_it_model_hash = file_sha256_digest(TEMP_FOLDER + 'end_it_model.params')
+    ver_net.save_parameters(TEMP_FOLDER + 'end_it_model')
+    end_it_model_hash = file_sha256_digest(TEMP_FOLDER + 'end_it_model')
     actual_nonce = Miner.calculate_nonce(end_it_model_hash, weight_indices)
     actual_nonce_int = swap32(int(binascii.hexlify(actual_nonce), 16))
     nonce_ok = actual_nonce_int == nonce
@@ -311,8 +311,8 @@ def verify_iteration(msg_history_id, msg_id, nonce, block_header, redis_host='lo
     if os.path.exists(batch_labels_location):
         os.remove(batch_labels_location)
 
-    if os.path.isfile(TEMP_FOLDER + 'end_it_model.params'):
-        os.remove(TEMP_FOLDER + 'end_it_model.params')
+    if os.path.isfile(TEMP_FOLDER + 'end_it_model'):
+        os.remove(TEMP_FOLDER + 'end_it_model')
 
     print('VERIFICATION SUCCESSFUL')
 

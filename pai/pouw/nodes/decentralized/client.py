@@ -327,15 +327,14 @@ class Client:
 
     def get_best_model(self, worker_training_results):
         best_model_data = max(worker_training_results, key=lambda x: x['acc_val'])
-        model_path = os.path.join(self.worker_output_directory, 'model')
-        model_path = model_path + '-final.params'
+        best_model_path_on_client = os.path.join(self.worker_output_directory, 'task_results', best_model_data['model_hash'])
 
         self.logger.info('Getting best model with accuracy of {}'.format(best_model_data['acc_val']))
 
-        shutil.copyfile(os.path.join(best_model_data['bucket'], best_model_data['key']), model_path)
+        shutil.copytree(os.path.join(best_model_data['bucket'], best_model_data['key']), best_model_path_on_client)
 
         # TODO cleanup of old model data
-        self.logger.info('Downloaded best model at: {}'.format(model_path))
+        self.logger.info('Downloaded best model at: {}'.format(best_model_path_on_client))
         for segment_hash in self._dataset_segments:
             if os.path.isfile(self._dataset_segments[segment_hash]):
                 os.remove(self._dataset_segments[segment_hash])

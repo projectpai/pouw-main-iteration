@@ -40,16 +40,16 @@ def save_model(net, path, sym=None, arg_dict=None):
 
     if arg_dict is None:
         arg_dict = reduce_params(net, sym)
-    ndarray.save('%s.params' % path, arg_dict)
+    ndarray.save('%s_model' % path, arg_dict)
 
 
 def save_successful_model(initial_path, task_id, model_hash, worker_id):
     directory = MODEL_DROP_LOCATION.format(task_id, worker_id, model_hash)
     os.makedirs(directory, exist_ok=True)
 
-    filename = initial_path + '-0000.params'
-    copyfile(filename, os.path.join(directory, 'model.params'))
-    model_template = 'models/' + task_id + '/' + worker_id + '/' + model_hash + '/model.params'
+    filename = initial_path + '_model'
+    copyfile(filename, os.path.join(directory, '_model'))
+    model_template = 'models/' + task_id + '/' + worker_id + '/' + model_hash + '/_model'
     os.makedirs(os.path.join(BUCKET, 'models', task_id, worker_id, model_hash), exist_ok=True)
     copyfile(filename, os.path.join(BUCKET, model_template))
     return filename, model_template, BUCKET

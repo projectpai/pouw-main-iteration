@@ -423,7 +423,7 @@ class WorkerNode(CommitteeCandidate):
         self.logger.info('Saved model to disk')
         model_hash_f = file_sha256_hexdigest(os.path.join(model_path + '_f', 'saved_model.pb'))
 
-        model_key = '{}_{}_{}.params'.format(self.task_id, self.node_id, self.node_id)
+        model_key = 'model_{}_{}_{}'.format(self.task_id, self.node_id, self.node_id)
 
         shutil.copytree(model_path + '_f', os.path.join(BUCKET, model_key))
         shutil.rmtree(model_path + '_f', ignore_errors=True)
