@@ -30,6 +30,8 @@ class Trainer:
         self._train_metric = keras.metrics.SparseCategoricalAccuracy()
         self._val_metric = keras.metrics.SparseCategoricalAccuracy()
 
+        self._model.compile(optimizer=self.optimizer, loss=self.loss_fn, metrics=[self.train_metric])
+
         # set the batch size
         self._batch_size = 64
 
