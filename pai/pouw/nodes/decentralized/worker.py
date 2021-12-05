@@ -306,7 +306,6 @@ class WorkerNode(CommitteeCandidate):
                 # save the model initial parameters
                 weights_a = np.concatenate([w.numpy().ravel() for w in self.model.weights]).ravel()
                 model_hash_a = hashlib.sha256(pickle.dumps(weights_a, protocol=0)).hexdigest()
-                # model_hash_a = file_sha256_hexdigest(os.path.join(model_path + '_a', 'saved_model.pb'))
 
                 # UNCOMMENT AND IMPLEMENT: self.receive_and_apply_peer_gradients(data, epoch, self.grads, label)
                 self.add_new_gradients_to_residuals(grads)
@@ -389,12 +388,6 @@ class WorkerNode(CommitteeCandidate):
                     '[Epoch %02d Batch %03d] Training: loss= %f accuracy= %.4f' % (
                         epoch, step, float(loss_value), float(self.train_metric.result())) + mining_report)
 
-                # END OF ITERATION
-                # clean up
-                # shutil.rmtree(model_path + '_a', ignore_errors=True)
-                # shutil.rmtree(model_path + '_b', ignore_errors=True)
-
-                # Display metrics at the end of each epoch.
             train_acc = self.train_metric.result()
             print("Training acc over epoch: %.4f" % (float(train_acc),))
 

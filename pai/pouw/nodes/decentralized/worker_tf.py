@@ -163,7 +163,7 @@ class Trainer:
                 grads = tape.gradient(loss_value, self.model.trainable_weights)
 
                 self.add_new_gradients_to_residuals(grads)
-                delta_local = self.compute_delta_local_and_update_residuals()
+                delta_local, map_local = self.compute_delta_local_and_update_residuals()
                 self.optimizer.apply_gradients(zip(delta_local, self.model.trainable_weights))
 
                 # Update training metric.
@@ -196,13 +196,18 @@ class Trainer:
 
     def compute_delta_local_and_update_residuals(self):
         delta_local = []
+        map_local = []
+        address = 0
         for idx, res_grad in enumerate(self.residual_gradients):
             upper_grads = tf.math.greater_equal(self.residual_gradients[idx], self.tau)
             lower_grads = tf.math.less_equal(self.residual_gradients[idx], -self.tau)
+            map_local.extend(address + (int(up_idx[0] if res_grad.shape.ndims == 1 else up_idx[0] * res_grad.shape[1] + up_idx[1]) | (1 << 31)) for up_idx in tf.where(tf.equal(upper_grads, True)))
+            map_local.extend(address + (int(lw_idx[0] if res_grad.shape.ndims == 1 else lw_idx[0] * res_grad.shape[1] + lw_idx[1]) & (~(1 << 31))) for lw_idx in tf.where(tf.equal(lower_grads, True)))
+            address += res_grad.shape[0] if res_grad.shape.ndims == 1 else res_grad.shape[0] * res_grad.shape[1]
             delta_local_row = tf.cast(upper_grads, tf.float32) * self.tau + tf.cast(lower_grads, tf.float32) * -self.tau
             self.residual_gradients[idx] = tf.math.subtract(self.residual_gradients[idx], delta_local_row)
             delta_local.append(delta_local_row)
-        return delta_local
+        return delta_local, map_local
 
     def add_new_gradients_to_residuals(self, grads):
         if not self.residual_gradients:

@@ -327,7 +327,7 @@ class Client:
 
     def get_best_model(self, worker_training_results):
         best_model_data = max(worker_training_results, key=lambda x: x['acc_val'])
-        best_model_path_on_client = os.path.join(self.worker_output_directory, 'task_results', best_model_data['model_hash'])
+        best_model_path_on_client = os.path.join(self.worker_output_directory, 'best_models', best_model_data['model_hash'])
 
         self.logger.info('Getting best model with accuracy of {}'.format(best_model_data['acc_val']))
 
