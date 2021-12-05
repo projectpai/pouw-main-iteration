@@ -15,7 +15,7 @@ def is_upper_threshold(var):
 class Trainer:
     def __init__(self):
         self._residualGradients = None
-        self._tau = 10
+        self._tau = 10.00
         # add the default MNIST model
 
         inputs = keras.Input(shape=(784,), name="digits")
@@ -195,6 +195,12 @@ class Trainer:
 
                 self.add_new_gradients_to_residuals(grads)
                 delta_local, map_local = self.compute_delta_local_and_update_residuals()
+                delta_local_reconstructed = self.rebuild_delta_local(map_local)
+                for idx, el in enumerate(delta_local):
+                    t1 = el.numpy()
+                    t2 = delta_local_reconstructed[idx].numpy()
+                    res = np.array_equal(t1, t2)
+                    print(res)
                 self.optimizer.apply_gradients(zip(delta_local, self.model.trainable_weights))
 
                 # Update training metric.
@@ -224,6 +230,24 @@ class Trainer:
             self.val_metric.reset_states()
             print("Validation acc: %.4f" % (float(val_acc),))
             print("Time taken: %.2fs" % (time.time() - start_time))
+
+    def rebuild_delta_local(self, map_local):
+        delta_local = []
+        coordinates = self.decode_map_local(map_local)
+        for idx, up_indices in enumerate(coordinates[0]):
+            up_updates = tf.fill([len(up_indices)], self.tau)
+            dw_updates = tf.fill([len(coordinates[1][idx])], -self.tau)
+            updates = tf.concat([up_updates, dw_updates], -1)
+
+            dw_indices = coordinates[1][idx]
+            indices = up_indices + dw_indices
+
+            if len(indices) > 0:
+                delta_local_row = tf.scatter_nd(indices, updates, self.residual_gradients[idx].shape)
+            else:
+                delta_local_row = tf.zeros_like(self.residual_gradients[idx])
+            delta_local.append(delta_local_row)
+        return delta_local
 
     def decode_map_local(self, map_local):
         upper_coord = [[] for i in range(len(self.ranges))]
