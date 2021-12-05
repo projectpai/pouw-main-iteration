@@ -8,6 +8,10 @@ from tensorflow.keras import layers
 import numpy as np
 
 
+def is_upper_threshold(var):
+    return var & (1 << 31) > 0
+
+
 class Trainer:
     def __init__(self):
         self._residualGradients = None
@@ -22,6 +26,17 @@ class Trainer:
 
         # set the default optimizer
         self._optimizer = keras.optimizers.SGD(learning_rate=1e-3)
+
+        # store structure
+        self._structure = [[w.shape.dims[0].value] if w.shape.ndims == 1 else [w.shape.dims[0].value, w.shape.dims[1].value] for w in self.model.trainable_weights]
+
+        # store ranges for local map
+        self._ranges = []
+        cumulated = 0
+        for itm in self.structure:
+            prev = cumulated
+            cumulated += (itm[0] if len(itm) == 1 else itm[0] * itm[1])
+            self._ranges.append((prev, cumulated - 1))
 
         # set the loss function
         self._loss_fn = keras.losses.SparseCategoricalCrossentropy(from_logits=True)
@@ -48,6 +63,22 @@ class Trainer:
     @model.setter
     def model(self, value):
         self._model = value
+
+    @property
+    def structure(self):
+        return self._structure
+
+    @structure.setter
+    def structure(self, value):
+        self._structure = value
+
+    @property
+    def ranges(self):
+        return self._ranges
+
+    @ranges.setter
+    def ranges(self, value):
+        self._ranges = value
 
     @property
     def train_dataset(self):
@@ -194,6 +225,31 @@ class Trainer:
             print("Validation acc: %.4f" % (float(val_acc),))
             print("Time taken: %.2fs" % (time.time() - start_time))
 
+    def decode_map_local(self, map_local):
+        upper_coord = [[] for i in range(len(self.ranges))]
+        lower_coord = [[] for i in range(len(self.ranges))]
+        for m in map_local:
+            is_upper = is_upper_threshold(m)
+            if is_upper:
+                m &= (~(1 << 31))
+
+            for i, r in enumerate(self.ranges):
+                if r[0] <= m <= r[1]:
+                    m -= r[0]
+                    if len(self.structure[i]) == 1:
+                        if is_upper:
+                            upper_coord[i].append([m])
+                        else:
+                            lower_coord[i].append([m])
+                    else:
+                        if is_upper:
+                            upper_coord[i].append([m // self.structure[i][1], m % self.structure[i][1]])
+                        else:
+                            lower_coord[i].append([m // self.structure[i][1], m % self.structure[i][1]])
+                    break
+
+        return upper_coord, lower_coord
+
     def compute_delta_local_and_update_residuals(self):
         delta_local = []
         map_local = []
@@ -207,6 +263,7 @@ class Trainer:
             delta_local_row = tf.cast(upper_grads, tf.float32) * self.tau + tf.cast(lower_grads, tf.float32) * -self.tau
             self.residual_gradients[idx] = tf.math.subtract(self.residual_gradients[idx], delta_local_row)
             delta_local.append(delta_local_row)
+
         return delta_local, map_local
 
     def add_new_gradients_to_residuals(self, grads):

@@ -14,7 +14,6 @@ import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
 
-
 import mxnet as mx
 import numpy as np
 import pai.pouw.message_map
@@ -114,6 +113,10 @@ def get_other_workers_local_data(redis_conn, additional_iteration_keys):
     return iterations_data
 
 
+def is_upper_threshold(var):
+    return var & (1 << 31) > 0
+
+
 class WorkerNode(CommitteeCandidate):
 
     def __init__(self, redis_host, redis_port, context, is_debug=False):
@@ -155,6 +158,19 @@ class WorkerNode(CommitteeCandidate):
         # set the default optimizer
         self._optimizer = keras.optimizers.SGD(learning_rate=1e-3)
 
+        # store structure
+        self._structure = [
+            [w.shape.dims[0].value] if w.shape.ndims == 1 else [w.shape.dims[0].value, w.shape.dims[1].value] for w in
+            self.model.trainable_weights]
+
+        # store ranges for local map
+        self._ranges = []
+        cumulated = 0
+        for itm in self.structure:
+            prev = cumulated
+            cumulated += (itm[0] if len(itm) == 1 else itm[0] * itm[1])
+            self._ranges.append((prev, cumulated - 1))
+
         # set the loss function
         self._loss_fn = keras.losses.SparseCategoricalCrossentropy(from_logits=True)
 
@@ -180,6 +196,22 @@ class WorkerNode(CommitteeCandidate):
     @model.setter
     def model(self, value):
         self._model = value
+
+    @property
+    def structure(self):
+        return self._structure
+
+    @structure.setter
+    def structure(self, value):
+        self._structure = value
+
+    @property
+    def ranges(self):
+        return self._ranges
+
+    @ranges.setter
+    def ranges(self, value):
+        self._ranges = value
 
     @property
     def train_dataset(self):
@@ -272,15 +304,50 @@ class WorkerNode(CommitteeCandidate):
     def get_global_iteration_index(self):
         return self.conn.incr('{}_global_iteration_index'.format(self.task_id))
 
+    def decode_map_local(self, map_local):
+        upper_coord = [[] for i in range(len(self.ranges))]
+        lower_coord = [[] for i in range(len(self.ranges))]
+        for m in map_local:
+            is_upper = is_upper_threshold(m)
+            if is_upper:
+                m &= (~(1 << 31))
+
+            for i, r in enumerate(self.ranges):
+                if r[0] <= m <= r[1]:
+                    m -= r[0]
+                    if len(self.structure[i]) == 1:
+                        if is_upper:
+                            upper_coord[i].append([m])
+                        else:
+                            lower_coord[i].append([m])
+                    else:
+                        if is_upper:
+                            upper_coord[i].append([m // self.structure[i][1], m % self.structure[i][1]])
+                        else:
+                            lower_coord[i].append([m // self.structure[i][1], m % self.structure[i][1]])
+                    break
+
+        return upper_coord, lower_coord
+
     def compute_delta_local_and_update_residuals(self):
         delta_local = []
+        map_local = []
+        address = 0
         for idx, res_grad in enumerate(self.residual_gradients):
             upper_grads = tf.math.greater_equal(self.residual_gradients[idx], self.tau)
             lower_grads = tf.math.less_equal(self.residual_gradients[idx], -self.tau)
+            map_local.extend(address + (
+                    int(up_idx[0] if res_grad.shape.ndims == 1 else up_idx[0] * res_grad.shape[1] + up_idx[1]) | (
+                        1 << 31)) for up_idx in tf.where(tf.equal(upper_grads, True)))
+            map_local.extend(address + (
+                    int(lw_idx[0] if res_grad.shape.ndims == 1 else lw_idx[0] * res_grad.shape[1] + lw_idx[1]) & (
+                ~(1 << 31))) for lw_idx in tf.where(tf.equal(lower_grads, True)))
+            address += res_grad.shape[0] if res_grad.shape.ndims == 1 else res_grad.shape[0] * res_grad.shape[1]
             delta_local_row = tf.cast(upper_grads, tf.float32) * self.tau + tf.cast(lower_grads, tf.float32) * -self.tau
             self.residual_gradients[idx] = tf.math.subtract(self.residual_gradients[idx], delta_local_row)
             delta_local.append(delta_local_row)
-        return delta_local
+
+        return delta_local, map_local
 
     def add_new_gradients_to_residuals(self, grads):
         if not self.residual_gradients:
@@ -309,7 +376,7 @@ class WorkerNode(CommitteeCandidate):
 
                 # UNCOMMENT AND IMPLEMENT: self.receive_and_apply_peer_gradients(data, epoch, self.grads, label)
                 self.add_new_gradients_to_residuals(grads)
-                delta_local = self.compute_delta_local_and_update_residuals()
+                delta_local, map_local = self.compute_delta_local_and_update_residuals()
 
                 # build message map
                 # local_message_map = np.append(local_message_map,
@@ -327,7 +394,6 @@ class WorkerNode(CommitteeCandidate):
                 # overdrive_index = pai.pouw.overdrive.calculate_overdrive(initial_local_gradients,
                 #                                                          local_map,
                 #                                                          self.tau)
-
 
                 # # update the network to calculate final loss and accuracy
                 # output = self.model()
