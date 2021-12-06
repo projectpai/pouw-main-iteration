@@ -14,7 +14,6 @@ from logging.handlers import RotatingFileHandler
 import numpy as np
 import redis
 import yaml
-from mxnet import gluon
 from tensorflow import keras
 
 from pai import POUW_ROOT_PATH
@@ -178,10 +177,6 @@ class Client:
         return train_data
 
     def _load_mnist_dataset(self):
-        # train_data = gluon.data.DataLoader(
-        #     gluon.data.vision.MNIST(DATA_DIRECTORY, train=True, transform=transformer),
-        #     batch_size=self._cluster_request_data['ml']['optimizer']['batch-size'],
-        #     shuffle=True, last_batch='discard')
         (x_train, y_train), (x_test, y_test) = keras.datasets.mnist.load_data()
         x_train = np.reshape(x_train, (-1, 784))
         x_test = np.reshape(x_test, (-1, 784))
@@ -216,14 +211,14 @@ class Client:
 
         # we are making assumption that last value is value we need to predict
         # TODO add parametrization of label column
-        dataset_normed = gluon.data.ArrayDataset(dataset_normed[:, :-1], dataset_normed[:, -1])
+        # dataset_normeyd = gluon.data.ArrayDataset(dataset_normed[:, :-1], dataset_normed[:, -1])
 
-        train_data = gluon.data.DataLoader(
-            dataset_normed,
-            batch_size=self._cluster_request_data['ml']['optimizer']['batch-size'],
-            shuffle=True, last_batch='discard')
+        # train_data = gluon.data.DataLoader(
+        #     dataset_normed,
+        #     batch_size=self._cluster_request_data['ml']['optimizer']['batch-size'],
+        #     shuffle=True, last_batch='discard')
 
-        return train_data
+        return None
 
     def get_dataset_hashes(self):
         self.logger.info('Started generating dataset segment hashes')

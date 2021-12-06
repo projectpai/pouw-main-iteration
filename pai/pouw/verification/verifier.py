@@ -14,7 +14,6 @@ import yaml
 import pai
 import redis
 from mxnet import gluon, autograd
-from pai.pouw import message_map, overdrive
 from pai.pouw.constants import TEMP_FOLDER, BUCKET, BLOCK_COMMITMENT_INERATIONS_ANNOUNCED
 from pai.pouw.mining.gbtminer import Miner
 from pai.pouw.mining.utils import get_batch_hash, file_sha256_hexdigest, file_sha256_digest
@@ -90,7 +89,6 @@ def verify_iteration(msg_history_id, msg_id, nonce, block_header, redis_host='lo
     task_id = it_data['task_id']
     batch_location = it_data['batch_hash']
     model_hash = it_data['model_hash']
-    learning_rate = float(it_data['e_l'])
 
     error_code, reason = verify_block_commitment(conn, msg_id, worker_id, block_header)
     if error_code is not None:
@@ -138,7 +136,7 @@ def verify_iteration(msg_history_id, msg_id, nonce, block_header, redis_host='lo
 
     # Trainer is for updating parameters with gradient. We use SGD as optimizer.
     trainer = gluon.Trainer(ver_net.collect_params(), 'sgd',
-                            {'learning_rate': learning_rate, 'momentum': 0.0})
+                            {'learning_rate': 1e-3, 'momentum': 0.0})
 
     # Add metrics: accuracy and cross-entropy loss
     accuracy = mx.metric.Accuracy()
@@ -204,8 +202,6 @@ def verify_iteration(msg_history_id, msg_id, nonce, block_header, redis_host='lo
     # do back propagation
     L.backward()
 
-    initial_local_gradients = overdrive.clone_gradients(grads)
-
     weight_indices = it_data['local_deltas']
     deltas = message_map.decode_message_map(ctx, weight_indices, gradients_blueprint, gradients_cumulative,
                                             it_data['tau'], zero_setter)
@@ -216,10 +212,6 @@ def verify_iteration(msg_history_id, msg_id, nonce, block_header, redis_host='lo
 
     # take a gradient step with batch_size equal to data.shape[0]
     trainer.update(data.shape[0])
-
-    # calculate overdrive
-    tau = it_data['tau']
-    overdrive_index = overdrive.calculate_overdrive(initial_local_gradients, deltas, tau)
 
     # re-evaluate network output
     output = ver_net(data)
@@ -275,16 +267,6 @@ def verify_iteration(msg_history_id, msg_id, nonce, block_header, redis_host='lo
         return verifier_pb2.Response(code=verifier_pb2.Response.INVALID,
                                      description="Invalid loss.\nGot {}, expected {}".format(
                                          metrics[1], it_data['j_tr']))
-
-    overdrive_index_ok = overdrive_index == it_data['overdrive']
-    print('Overdrive index values match: %s -> actual : %s | provided: %s' % (
-        'YES' if overdrive_index_ok else 'NO',
-        overdrive_index, it_data['overdrive']))
-
-    if not overdrive_index_ok:
-        print('VERIFICATION FAILED')
-        return verifier_pb2.Response(code=verifier_pb2.Response.INVALID,
-                                     description="Invalid overdrive index.")
 
     # verify nonce
     os.makedirs(TEMP_FOLDER, exist_ok=True)

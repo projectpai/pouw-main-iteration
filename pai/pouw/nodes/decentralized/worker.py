@@ -10,24 +10,18 @@ import time
 from copy import copy
 from distutils.util import strtobool
 
+import numpy as np
 import tensorflow as tf
+from bitcoinrpc.proxy import JSONRPCException
+from mock import MagicMock
 from tensorflow import keras
 from tensorflow.keras import layers
 
-import mxnet as mx
-import numpy as np
-import pai.pouw.message_map
-import pai.pouw.overdrive
-from bitcoinrpc.proxy import JSONRPCException
-from mock import MagicMock
-from mxnet import gluon, autograd
-from mxnet.gluon import nn
 from pai.pouw.constants import BUCKET, BLOCK_COMMITMENT_INERATIONS_ANNOUNCED
-from pai.pouw.message_map import build_message_map
 from pai.pouw.mining.blkmaker.blkmaker import sha256_hexdigest
 from pai.pouw.mining.gbtminer import Miner
 from pai.pouw.mining.utils import get_batch_hash, save_successful_batch, \
-    save_successful_model, delete_saved, file_sha256_hexdigest, file_sha256_digest
+    save_successful_model, file_sha256_hexdigest
 from pai.pouw.nodes.decentralized.committee_candidate import CommitteeCandidate
 
 
@@ -57,16 +51,9 @@ def main():
     # for each worker
     np.random.seed(7)
 
-    # decide the context: GPU or CPU
-    if opt.cuda:
-        ctx = mx.gpu(0)
-    else:
-        ctx = mx.cpu()
-
     # initialize redis connection
 
     node = WorkerNode(redis_host=opt.redis_host, redis_port=opt.redis_port,
-                      context=ctx,
                       is_debug=opt.debug)
 
     if opt.use_paicoin:
@@ -78,29 +65,6 @@ def main():
         node.miner.mine_announced_block = MagicMock(return_value=(False, None))
 
     node.start_task_listening()
-
-
-def transformer(data, label):
-    data = data.reshape((-1,)).astype(np.float32) / 255
-    return data, label
-
-
-def test(ctx, net, validation_samples, validation_labels):
-    accuracy = mx.metric.Accuracy()
-    ce_loss = mx.metric.CrossEntropy()
-    comp_metric = mx.metric.CompositeEvalMetric([accuracy, ce_loss])
-
-    for data, label in zip(validation_samples, validation_labels):
-        # Copy data to ctx if necessary
-        data = mx.nd.array(data)
-        label = mx.nd.array(label)
-
-        data = data.as_in_context(ctx)
-        label = label.as_in_context(ctx)
-        output = net(data)
-        comp_metric.update([label], [output.softmax()])
-
-    return comp_metric.get()
 
 
 def get_other_workers_local_data(redis_conn, additional_iteration_keys):
@@ -119,13 +83,8 @@ def is_upper_threshold(var):
 
 class WorkerNode(CommitteeCandidate):
 
-    def __init__(self, redis_host, redis_port, context, is_debug=False):
+    def __init__(self, redis_host, redis_port, is_debug=False):
         CommitteeCandidate.__init__(self, redis_host, redis_port, is_debug)
-        # lambda convenience methods for message map
-
-        self.zero_setter = np.vectorize(lambda int_type: int_type & (~(1 << 31)),
-                                        otypes=[np.uint32])
-        self.one_setter = np.vectorize(lambda int_type: int_type | (1 << 31), otypes=[np.uint32])
 
         # the hash of the current batch
         self.batch_hash = None
@@ -293,9 +252,17 @@ class WorkerNode(CommitteeCandidate):
     def tau(self, value):
         self._tau = value
 
+    @property
+    def peer_msg_ids(self):
+        return self._peer_msg_ids
+
+    @peer_msg_ids.setter
+    def peer_msg_ids(self, value):
+        self._peer_msg_ids = value
+
     def reset_network_state(self):
         # Collect all parameters from net and its children, then initialize them.
-        self._peer_msg_ids = []
+        self.peer_msg_ids = []
         self._consumed_peer_msg_ids = []
         self.last_updated_iteration_index = 0
         self.global_iteration_index = 0
@@ -357,83 +324,43 @@ class WorkerNode(CommitteeCandidate):
                 self.residual_gradients[idx] = tf.math.add(self.residual_gradients[idx], grad)
 
     def train(self):
-
-        metrics = [0, 0, 0]
         model_path = os.path.join(self.node_output_directory, 'model')
         # ITERATIONS PHASE
+        train_acc = 0.0
         for epoch in range(self.task_data['ml']['optimizer']['epochs']):
-            start_time = time.time()
             for step, (x_batch_train, y_batch_train) in enumerate(self.train_dataset):
+                it_ts = datetime.datetime.now()
+                # save the model initial parameters
+                model_hash_a = self.get_model_hash()
+                self.receive_and_apply_peer_gradients(epoch)
                 self.batch_hash = get_batch_hash(x_batch_train, y_batch_train)
+
                 with tf.GradientTape() as tape:
                     logits = self.model(x_batch_train, training=True)
                     loss_value = self.loss_fn(y_batch_train, logits)
                 grads = tape.gradient(loss_value, self.model.trainable_weights)
 
-                # save the model initial parameters
-                weights_a = np.concatenate([w.numpy().ravel() for w in self.model.weights]).ravel()
-                model_hash_a = hashlib.sha256(pickle.dumps(weights_a, protocol=0)).hexdigest()
-
-                # UNCOMMENT AND IMPLEMENT: self.receive_and_apply_peer_gradients(data, epoch, self.grads, label)
                 self.add_new_gradients_to_residuals(grads)
                 delta_local, map_local = self.compute_delta_local_and_update_residuals()
-
-                # build message map
-                # local_message_map = np.append(local_message_map,
-                #                               build_message_map(idx, self.gradients_cumulative,
-                #                                                 local_delta_positive.asnumpy(),
-                #                                                 local_delta_negative.asnumpy(),
-                #                                                 self.zero_setter,
-                #                                                 self.one_setter))
-
                 self.optimizer.apply_gradients(zip(delta_local, self.model.trainable_weights))
-
-                # Update training metric.
                 self.train_metric.update_state(y_batch_train, logits)
 
-                # overdrive_index = pai.pouw.overdrive.calculate_overdrive(initial_local_gradients,
-                #                                                          local_map,
-                #                                                          self.tau)
-
-                # # update the network to calculate final loss and accuracy
-                # output = self.model()
-                #
-                # # update metrics
-                # self.comp_metric.update([x_batch_train], [output.softmax()])
-                #
-                # # report intermediary metrics
-                # names, metrics = self.comp_metric.get()
-
                 mining_report = ''
-                local_message_map = []
-                # update redis if there were any updates
-                if len(local_message_map) > 0:
-                    self.model.save(model_path + '_b')
-                    model_hash_b = file_sha256_digest(os.path.join(model_path + '_b', 'saved_model.pb'))
-
+                if len(map_local) > 0:
+                    model_hash_b = self.get_model_hash()
                     znb_hash = self.miner.announce_new_block()
-                    m_key = 'test_key'
-                    # m_key = self.send_gradient_updates(epoch, local_message_map.tolist(),
-                    #                                    metrics, overdrive_index, time_started, znb_hash)
+                    m_key = self.send_gradient_updates(epoch, map_local, float(loss_value),
+                                                       float(self.train_metric.result()), it_ts, znb_hash, model_hash_a)
 
-                    # mining takes place after sending the iteration message
-                    # first, one must find out how much time is allowed to pick the next message
-                    # allowed_time = self.get_allowed_next_message_time()
-
-                    features_filename, features_template = None, None
-                    labels_filename, labels_template = None, None
-                    model_filename, model_template = None, None
-                    bucket_used = None
                     try:
                         block_hex_data, nonce = self.miner.mine_announced_block(m_key.encode('latin1'), b'',
                                                                                 model_hash_b,
-                                                                                local_message_map)
+                                                                                map_local)
                         if nonce is not None:
                             mining_report = " nonce=%s" % binascii.hexlify(nonce).decode('latin1')
 
                         if block_hex_data:
-                            features_filename, features_template, labels_filename, labels_template = \
-                                save_successful_batch(x_batch_train, y_batch_train, self.batch_hash)
+                            save_successful_batch(x_batch_train, y_batch_train, self.batch_hash)
 
                             model_filename, model_template, bucket_used = save_successful_model(
                                 os.path.join(self.node_output_directory, 'model'),
@@ -455,28 +382,12 @@ class WorkerNode(CommitteeCandidate):
                         epoch, step, float(loss_value), float(self.train_metric.result())) + mining_report)
 
             train_acc = self.train_metric.result()
-            print("Training acc over epoch: %.4f" % (float(train_acc),))
 
             # Reset training metrics at the end of each epoch
             self.train_metric.reset_states()
-
-            # Run a validation loop at the end of each epoch.
-            for x_batch_val, y_batch_val in self.val_dataset:
-                val_logits = self.model(x_batch_val, training=False)
-                # Update val metrics
-                self.val_metric.update_state(y_batch_val, val_logits)
-            val_acc = self.val_metric.result()
-            self.val_metric.reset_states()
-            print("Validation acc: %.4f" % (float(val_acc),))
-            print("Time taken: %.2fs" % (time.time() - start_time))
-
-            # self.end_of_epoch_node_synchronization(x_batch_train, epoch, self.grads, y_batch_train)
-            # self.report_end_of_epoch_data(epoch, start_time, self.val_dataset, validation_labels)
-            # self.logger.info('Completed {} epoch'.format(epoch))
-            # mining also takes place after sending the epoch message
-            # first, one must find out how much time is allowed to pick the next message
-            # allowed_time = self.get_allowed_next_message_time()
-            # self.logger.info('[EPOCH %d ] Time to pick next message: %f s' % (epoch, allowed_time))
+            self.end_of_epoch_node_synchronization(epoch)
+            self.report_end_of_epoch_data(epoch)
+            self.logger.info('Completed {} epoch'.format(epoch))
 
         self.model.save(model_path + '_f')
         self.logger.info('Saved model to disk')
@@ -490,8 +401,8 @@ class WorkerNode(CommitteeCandidate):
 
         end_result = {
             'worker_signature': self.node_id,
-            'j_val': metrics[1],
-            'acc_val': metrics[0],
+            'j_val': float(loss_value),
+            'acc_val': float(train_acc),
             'worker_id': self.node_id,
             'model_hash': model_hash_f,
             'bucket': BUCKET,
@@ -502,70 +413,55 @@ class WorkerNode(CommitteeCandidate):
 
         return end_result
 
-    def report_end_of_epoch_data(self, epoch, epoch_time_started, validation_samples, validation_labels):
-        # show epoch metrics
-        names, metrics = self.comp_metric.get()
-        self.logger.info('[EPOCH %d ] Training: %s=%f %s=%f' % (
-            epoch, names[0], metrics[0], names[1], metrics[1]))
-        names, metrics = test(self.ctx, self.net, validation_samples, validation_labels)
-        self.logger.info('[EPOCH %d ] Validation: %s=%f %s=%f' % (
-            epoch, names[0], metrics[0], names[1], metrics[1]))
-        # track finish time of epoch
-        epoch_time_finished = datetime.datetime.now()
+    def get_model_hash(self):
+        weights_a = np.concatenate([w.numpy().ravel() for w in self.model.weights]).ravel()
+        model_hash_a = hashlib.sha256(pickle.dumps(weights_a, protocol=0)).hexdigest()
+        return model_hash_a
+
+    def report_end_of_epoch_data(self, epoch):
+        # Run a validation loop at the end of each epoch.
+        for x_batch_val, y_batch_val in self.val_dataset:
+            val_logits = self.model(x_batch_val, training=False)
+            # Update val metrics
+            self.val_metric.update_state(y_batch_val, val_logits)
+        val_acc = self.val_metric.result()
+        self.val_metric.reset_states()
+
+        self.logger.info('[EPOCH %d ] Validation: %s=%.4f' % (epoch, 'accuracy', float(val_acc)))
 
         epoch_metrics = {'miner_id': self.node_id,
-                         'cross_entropy': metrics[1],
-                         'accuracy': metrics[0]}
+                         'accuracy': float(val_acc)}
 
         self.conn.rpush('epoch_details_{}_{}'.format(self.task_id, epoch), json.dumps(epoch_metrics))
 
-        if self.is_debug:
-            with open(os.path.join(self.node_output_directory,
-                                   'epoch_completed_{:03d}.json'.format(epoch)),
-                      'w') as outfile:
-                results = {'n_version': 0,
-                           'task_id': self.task_id,
-                           'msg_type': 'EPOCH_COMPLETED',
-                           'j_val': metrics[1],
-                           'acc_val': metrics[0],
-                           'tes': str(epoch_time_started),
-                           'tef': str(epoch_time_finished),
-                           'epoch': epoch,
-                           'signature': self.node_id,
-                           'peer_msg_ids': self._peer_msg_ids,
-                           'task_data': self.task_data}
-                json.dump(results, outfile)
-
-    def send_gradient_updates(self, epoch, weight_indexes, metrics, overdrive_index,
-                              time_started, znb_hash):
+    def send_gradient_updates(self, epoch, weight_indexes, loss, accuracy,
+                              start_time, znb_hash, initial_model_hash):
         self.validate_peer_message_ids()
 
-        serialised_residual = b''
-        for g_res in self.gradient_residual:
-            serialised_residual += pickle.dumps(g_res.as_in_context(self.ctx))
+        residuals = np.concatenate([r.numpy().ravel() for r in self.residual_gradients]).ravel()
+        residuals_hash = hashlib.sha256(pickle.dumps(residuals, protocol=0)).hexdigest()
 
         serialised_peers = b''
-        for peer_msg in self._peer_msg_ids:
+        for peer_msg in self.peer_msg_ids:
             serialised_peers += peer_msg.encode()
+
             # send local map to redis
         results = {'n_version': 0,
                    'task_id': self.task_id,
                    'msg_type': 'IT_RES',
                    'batch_hash': self.batch_hash,
                    'local_deltas': weight_indexes,
-                   'j_tr': metrics[1],
-                   'acc_tr': metrics[0],
-                   'e_l': self.task_data['ml']['optimizer']['optimizer_initialization_parameters']['learning_rate'],
-                   'ts': str(time_started),
+                   'j_tr': loss,
+                   'acc_tr': accuracy,
+                   'ts': str(start_time),
                    'tf': str(datetime.datetime.now()),
-                   'overdrive': overdrive_index,
                    'epoch': epoch,
                    'tau': self.tau,
                    'znb_hash': znb_hash,
-                   'model_hash': self.model_hash_a,
-                   'residual_hash': sha256_hexdigest(serialised_residual),
+                   'model_hash': initial_model_hash,
+                   'residual_hash': residuals_hash,
                    'peer_msg_hash': sha256_hexdigest(serialised_peers),
-                   'peer_msg_ids': self._peer_msg_ids,
+                   'peer_msg_ids': self.peer_msg_ids,
                    'signature': self.node_id, }
         message_key = self.message_key_template.format(self.task_id, epoch,
                                                        self.global_iteration_index)
@@ -575,15 +471,9 @@ class WorkerNode(CommitteeCandidate):
         self._consumed_peer_msg_ids.append(message_key)
         self.conn.set(message_key, message)
 
-        if self.is_debug:
-            with open(os.path.join(self.node_output_directory,
-                                   'it_res.json'),
-                      'w') as outfile:
-                json.dump(results, outfile)
-
         return message_key
 
-    def end_of_epoch_node_synchronization(self, data, epoch, grads, label):
+    def end_of_epoch_node_synchronization(self, epoch):
         # now we wait for all workers to finish epoch
         epoch_info_key = 'epoch_completed_{}_{}'.format(self.task_id, epoch)
         self.conn.incr(epoch_info_key)
@@ -594,13 +484,13 @@ class WorkerNode(CommitteeCandidate):
                 time.sleep(1)
             else:
                 # we are checking if there were any updates from other workers
-                self.receive_and_apply_peer_gradients(data, epoch, grads, label)
+                self.receive_and_apply_peer_gradients(epoch)
                 break
 
-    def receive_and_apply_peer_gradients(self, data, epoch, grads, label):
+    def receive_and_apply_peer_gradients(self, epoch):
         # we are checking if there were any updates from other workers
         self.global_iteration_index = self.get_global_iteration_index()
-        self._peer_msg_ids = []
+        self.peer_msg_ids = []
 
         if self.last_updated_iteration_index + 1 < self.global_iteration_index:
             # collect other_workers iteration info
@@ -617,37 +507,19 @@ class WorkerNode(CommitteeCandidate):
             self._consumed_peer_msg_ids.extend(additional_iteration_keys)
             other_workers_data = get_other_workers_local_data(self.conn,
                                                               additional_iteration_keys)
-            self._peer_msg_ids = []
+            self.peer_msg_ids = []
 
             for worker_data in other_workers_data:
                 local_map = worker_data['local_deltas']
-
-                deltas = pai.pouw.message_map.decode_message_map(self.ctx, local_map,
-                                                                 self.gradients_blueprint,
-                                                                 self.gradients_cumulative,
-                                                                 worker_data['tau'],
-                                                                 self.zero_setter)
-
-                self.trainer.allreduce_grads()
-                # do back propagation
-                with autograd.record():
-                    output = self.net(data)
-                    L = self.loss(output, label)
-                L.backward()
-
-                for idx, grad in enumerate(grads):
-                    grad *= 0
-                    grad += deltas[idx].as_in_context(self.ctx)
-
-                # take a gradient step with batch_size equal to data.shape[0]
-                self.trainer.update(data.shape[0])
-                self._peer_msg_ids.append(worker_data['message_id'])
+                delta_local = self.decode_map_local(local_map)
+                self.optimizer.apply_gradients(zip(delta_local, self.model.trainable_weights))
+                self.peer_msg_ids.append(worker_data['message_id'])
 
             self.logger.debug('Applied {} gradient peer updates'.format(len(other_workers_data)))
         self.last_updated_iteration_index = self.global_iteration_index
 
     def validate_peer_message_ids(self):
-        message_ids = [int(message_id.split('_')[-1]) for message_id in self._peer_msg_ids]
+        message_ids = [int(message_id.split('_')[-1]) for message_id in self.peer_msg_ids]
         if any(message_id > self.global_iteration_index for message_id in message_ids):
             raise RuntimeError('Collected peer_ids can not be bigger than global index')
 
@@ -676,26 +548,19 @@ class WorkerNode(CommitteeCandidate):
         return training_result
 
     def initialize_network(self):
-        self.net = create_network(self.task_data['ml']['model'])
+        self.model = create_network(self.task_data['ml']['model'])
         initializers = {
-            'Xavier': mx.init.Xavier,
-            'Bilinear': mx.init.Bilinear,
-            'Constant': mx.init.Constant,
-            'FusedRNN': mx.init.FusedRNN,
-            'LSTMBias': mx.init.LSTMBias,
-            'MSRAPrelu': mx.init.MSRAPrelu,
-            'Normal': mx.init.Normal,
-            'One': mx.init.One,
-            'Orthogonal': mx.init.Orthogonal,
-            'Uniform': mx.init.Uniform,
-            'Zero': mx.init.Zero
+            'Xavier': tf.keras.initializers.GlorotNormal,
+            'Constant': tf.keras.initializers.Constant,
+            'Normal': tf.keras.initializers.RandomNormal,
+            'One': tf.keras.initializers.Ones,
+            'Orthogonal': tf.keras.initializers.Orthogonal,
+            'Uniform': tf.keras.initializers.RandomUniform,
+            'Zero': tf.keras.initializers.Zeros
         }
         initializer = initializers[self.task_data['ml']['optimizer']['initializer']['name']]
         parameters = self.task_data['ml']['optimizer']['initializer'].get('parameters', {})
-        self.net.initialize(initializer(**parameters), ctx=self.ctx)
-        # Trainer is for updating parameters with gradient. We use SGD as optimizer.
-        self.trainer = gluon.Trainer(self.net.collect_params(), 'sgd',
-                                     self.task_data['ml']['optimizer']['optimizer_initialization_parameters'])
+        self.model.initialize(initializer(**parameters))
 
 
 def get_layer_parameters_from_config(layer_parameters):
@@ -711,16 +576,15 @@ def get_layer_parameters_from_config(layer_parameters):
 
 
 def create_network(model_data):
-    net = nn.Sequential()
+    net = tf.keras.Sequential()
 
     layer_types = {
-        'Dense': nn.Dense,
-        'Dropout': nn.Dropout,
-        'BatchNorm': nn.BatchNorm,
-        'InstanceNorm': nn.InstanceNorm,
-        'LayerNorm': nn.LayerNorm,
-        'Embedding': nn.Embedding,
-        'Flatten': nn.Flatten
+        'Dense': tf.keras.layers.Dense,
+        'Dropout': tf.keras.layers.Dropout,
+        'BatchNorm': tf.keras.layers.BatchNormalization,
+        'LayerNorm': tf.keras.layers.LayerNormalization,
+        'Embedding': tf.keras.layers.Embedding,
+        'Flatten': tf.keras.layers.Flatten
 
     }
 
