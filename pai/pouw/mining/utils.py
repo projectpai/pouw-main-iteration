@@ -1,46 +1,16 @@
 import hashlib
-import json
 import os
 import pickle
 import random
 from shutil import copyfile
 
-import mxnet as mx
 import numpy as np
-from mxnet import ndarray
+
 from pai.pouw.constants import OUTPUT_DIRECTORY, BUCKET
 
 BATCH_DROP_LOCATION = OUTPUT_DIRECTORY + '/drop/batches/{}'
 MODEL_DROP_LOCATION = OUTPUT_DIRECTORY + '/drop/models/{}/{}/{}'
 BLOCK_DROP_LOCATION = OUTPUT_DIRECTORY + '/blocks'
-
-
-def reduce_params(net, sym):
-    arg_names = set(sym.list_arguments())
-    aux_names = set(sym.list_auxiliary_states())
-    arg_dict = {}
-    for name, param in net.collect_params().items():
-        if name in arg_names:
-            arg_dict['arg:%s' % name] = param._reduce()
-        else:
-            assert name in aux_names
-            arg_dict['aux:%s' % name] = param._reduce()
-
-    return arg_dict
-
-
-def save_model(net, path, sym=None, arg_dict=None):
-    if not net._cached_graph:
-        raise RuntimeError(
-            "Please first call block.hybridize() and then run forward with "
-            "this block at least once before calling export.")
-    if sym is None:
-        sym = net._cached_graph[1]
-    sym.save('%s.json' % path)
-
-    if arg_dict is None:
-        arg_dict = reduce_params(net, sym)
-    ndarray.save('%s_model' % path, arg_dict)
 
 
 def save_successful_model(initial_path, task_id, model_hash, worker_id):
@@ -57,7 +27,8 @@ def save_successful_model(initial_path, task_id, model_hash, worker_id):
 
 def save_batch(name, data, directory, batch_hash):
     filename = os.path.join(directory, name)
-    mx.nd.save(filename, data)
+    with open(filename, 'wb') as f:
+        np.save(f, data.numpy())
     batch_template = 'batches/' + batch_hash + '/' + name
     os.makedirs(os.path.join(BUCKET, 'batches', batch_hash), exist_ok=True)
     copyfile(filename, os.path.join(BUCKET, batch_template))
@@ -72,27 +43,6 @@ def save_successful_batch(data, label, batch_hash):
     labels_filename, labels_template = save_batch('labels', label, directory, batch_hash)
 
     return features_filename, features_template, labels_filename, labels_template
-
-
-def save_successful_block(nonce, msg_id, model_hash, msg_next_id, task_id, batch_id, worker_id):
-    directory = BLOCK_DROP_LOCATION
-    os.makedirs(directory, exist_ok=True)
-
-    with open(os.path.join(directory, task_id + '_' + worker_id + '_' + batch_id + '.json'), 'w') as outfile:
-        new_block = {
-            "nonce": nonce,
-            "msg_id": msg_id,
-            "model_hash": model_hash,
-            "msg_next_id": msg_next_id
-        }
-        json.dump(new_block, outfile)
-
-
-def delete_saved(filename, key, bucket_used=None):
-    os.remove(filename)
-
-    if bucket_used is not None:
-        os.remove(os.path.join(bucket_used, key))
 
 
 def get_batch_hash(data, label):

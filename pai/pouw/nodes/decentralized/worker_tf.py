@@ -188,6 +188,21 @@ class Trainer:
 
             # Iterate over the batches of the dataset.
             for step, (x_batch_train, y_batch_train) in enumerate(self.train_dataset):
+                with open('/Volumes/blackbox/Archive/uar/pouw-main-iteration/test/x_batch_train.npy', 'wb') as x_val_f,\
+                        open('/Volumes/blackbox/Archive/uar/pouw-main-iteration/test/y_batch_train.npy', 'wb') as y_val_f:
+                    np.save(x_val_f, x_batch_train.numpy())
+                    np.save(y_val_f, y_batch_train.numpy())
+
+                x_val = np.load('/Volumes/blackbox/Archive/uar/pouw-main-iteration/test/x_batch_train.npy')
+                y_val = np.load('/Volumes/blackbox/Archive/uar/pouw-main-iteration/test/y_batch_train.npy')
+
+                for x_train_2, y_train_2 in tf.data.Dataset.from_tensor_slices((x_val, y_val)).batch(64):
+                    test1 = tf.reduce_all(tf.equal(x_batch_train, x_train_2))
+                    test2 = tf.reduce_all(tf.equal(y_batch_train, y_train_2))
+                    print(test1)
+                #tf.data.experimental.save(self.train_dataset, '/Volumes/blackbox/Archive/uar/pouw-main-iteration/test/saved_batch_x')
+                # tf.io.write_file('/Volumes/blackbox/Archive/uar/pouw-main-iteration/test/saved_batch_y', x_batch_train)
+
                 with tf.GradientTape() as tape:
                     logits = self.model(x_batch_train, training=True)
                     loss_value = self.loss_fn(y_batch_train, logits)
