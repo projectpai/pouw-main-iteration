@@ -21,7 +21,7 @@ from pai.pouw.constants import BUCKET, BLOCK_COMMITMENT_INERATIONS_ANNOUNCED
 from pai.pouw.mining.blkmaker.blkmaker import sha256_hexdigest
 from pai.pouw.mining.gbtminer import Miner
 from pai.pouw.mining.utils import get_batch_hash, save_successful_batch, \
-    save_successful_model, file_sha256_hexdigest
+    save_successful_model, file_sha256_hexdigest, get_tensors_hash, get_model_hash
 from pai.pouw.nodes.decentralized.committee_candidate import CommitteeCandidate
 
 
@@ -331,7 +331,7 @@ class WorkerNode(CommitteeCandidate):
             for step, (x_batch_train, y_batch_train) in enumerate(self.train_dataset):
                 it_ts = datetime.datetime.now()
                 # save the model initial parameters
-                model_hash_a = self.get_model_hash()
+                model_hash_a = get_model_hash(self.model.trainable_weights)
                 self.receive_and_apply_peer_gradients(epoch)
                 self.batch_hash = get_batch_hash(x_batch_train, y_batch_train)
 
@@ -347,7 +347,7 @@ class WorkerNode(CommitteeCandidate):
 
                 mining_report = ''
                 if len(map_local) > 0:
-                    model_hash_b = self.get_model_hash()
+                    model_hash_b = get_model_hash(self.model.trainable_weights)
                     znb_hash = self.miner.announce_new_block()
                     m_key = self.send_gradient_updates(epoch, map_local, float(loss_value),
                                                        float(self.train_metric.result()), it_ts, znb_hash, model_hash_a)
@@ -413,11 +413,6 @@ class WorkerNode(CommitteeCandidate):
 
         return end_result
 
-    def get_model_hash(self):
-        weights_a = np.concatenate([w.numpy().ravel() for w in self.model.weights]).ravel()
-        model_hash_a = hashlib.sha256(pickle.dumps(weights_a, protocol=0)).hexdigest()
-        return model_hash_a
-
     def report_end_of_epoch_data(self, epoch):
         # Run a validation loop at the end of each epoch.
         for x_batch_val, y_batch_val in self.val_dataset:
@@ -438,8 +433,7 @@ class WorkerNode(CommitteeCandidate):
                               start_time, znb_hash, initial_model_hash):
         self.validate_peer_message_ids()
 
-        residuals = np.concatenate([r.numpy().ravel() for r in self.residual_gradients]).ravel()
-        residuals_hash = hashlib.sha256(pickle.dumps(residuals, protocol=0)).hexdigest()
+        residuals_hash = get_tensors_hash(self.residual_gradients)
 
         serialised_peers = b''
         for peer_msg in self.peer_msg_ids:

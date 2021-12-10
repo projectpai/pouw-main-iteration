@@ -52,6 +52,17 @@ def get_batch_hash(data, label):
                             formatter={'float_kind': lambda x: "%.4f" % x})).encode('latin1')).hexdigest()
 
 
+def get_tensors_hash(tensors):
+    tensors_concat = np.concatenate([w.numpy().ravel() for w in tensors])
+    tensors_hash = hashlib.sha256(pickle.dumps(tensors_concat, protocol=0)).hexdigest()
+    return tensors_hash
+
+
+def get_model_hash(weights):
+    model_hash_a = get_tensors_hash(weights)
+    return model_hash_a
+
+
 def file_sha256(file_path):
     sha256_hash = hashlib.sha256()
     with open(file_path, "rb") as f:
