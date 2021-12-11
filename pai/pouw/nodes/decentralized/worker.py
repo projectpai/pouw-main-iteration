@@ -504,8 +504,8 @@ class WorkerNode(CommitteeCandidate):
 
             for worker_data in other_workers_data:
                 local_map = worker_data['local_deltas']
-                delta_local = self.decode_map_local(local_map)
-                # self.optimizer.apply_gradients(zip(delta_local, self.model.trainable_weights))
+                delta_local = self.rebuild_delta_local(local_map)
+                self.optimizer.apply_gradients(zip(delta_local, self.model.trainable_weights))
                 self.peer_msg_ids.append(worker_data['message_id'])
 
             self.logger.debug('miner %s - [epoch %03d batch %03d] Peer updates: %d' %
@@ -555,6 +555,24 @@ class WorkerNode(CommitteeCandidate):
         initializer = initializers[self.task_data['ml']['optimizer']['initializer']['name']]
         parameters = self.task_data['ml']['optimizer']['initializer'].get('parameters', {})
         self.model.initialize(initializer(**parameters))
+
+    def rebuild_delta_local(self, map_local):
+        delta_local = []
+        coordinates = self.decode_map_local(map_local)
+        for idx, up_indices in enumerate(coordinates[0]):
+            up_updates = tf.fill([len(up_indices)], self.tau)
+            dw_updates = tf.fill([len(coordinates[1][idx])], -self.tau)
+            updates = tf.concat([up_updates, dw_updates], -1)
+
+            dw_indices = coordinates[1][idx]
+            indices = up_indices + dw_indices
+
+            if len(indices) > 0:
+                delta_local_row = tf.scatter_nd(indices, updates, self.model.trainable_weights[idx].shape)
+            else:
+                delta_local_row = tf.zeros_like(self.model.trainable_weights[idx])
+            delta_local.append(delta_local_row)
+        return delta_local
 
 
 def get_layer_parameters_from_config(layer_parameters):
