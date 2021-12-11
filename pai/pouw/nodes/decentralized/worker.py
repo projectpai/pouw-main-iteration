@@ -332,7 +332,7 @@ class WorkerNode(CommitteeCandidate):
                 it_ts = datetime.datetime.now()
                 # save the model initial parameters
                 model_hash_a = get_model_hash(self.model.trainable_weights)
-                self.receive_and_apply_peer_gradients(epoch)
+                self.receive_and_apply_peer_gradients(epoch, step)
                 self.batch_hash = get_batch_hash(x_batch_train, y_batch_train)
 
                 with tf.GradientTape() as tape:
@@ -371,15 +371,15 @@ class WorkerNode(CommitteeCandidate):
                             self.miner.submit_block(block_hex_data)
                             mining_report += " Mining successful!"
                     except JSONRPCException as e:
-                        self.logger.warning('[Epoch %02d Batch %03d] Mining error: %s' % (
+                        self.logger.warning('[epoch %03d batch %03d] Mining error: %s' % (
                             epoch, step, e.error['message']))
                     except Exception as e:
-                        self.logger.warning('[Epoch %02d Batch %03d] Mining error: %s' % (
+                        self.logger.warning('[epoch %02d batch %03d] Mining error: %s' % (
                             epoch, step, e))
 
                 self.logger.debug(
-                    '[Epoch %02d Batch %03d] Training: loss= %f accuracy= %.4f' % (
-                        epoch, step, float(loss_value), float(self.train_metric.result())) + mining_report)
+                    'miner %s - [epoch %03d batch %03d] Training: loss= %f accuracy= %.4f' % (
+                        self.node_id, epoch, step, float(loss_value), float(self.train_metric.result())) + mining_report)
 
             train_acc = self.train_metric.result()
 
@@ -387,7 +387,6 @@ class WorkerNode(CommitteeCandidate):
             self.train_metric.reset_states()
             self.end_of_epoch_node_synchronization(epoch)
             self.report_end_of_epoch_data(epoch)
-            self.logger.info('Completed {} epoch'.format(epoch))
 
         self.model.save(model_path + '_f')
         self.logger.info('Saved model to disk')
@@ -422,7 +421,7 @@ class WorkerNode(CommitteeCandidate):
         val_acc = self.val_metric.result()
         self.val_metric.reset_states()
 
-        self.logger.info('[EPOCH %d ] Validation: %s=%.4f' % (epoch, 'accuracy', float(val_acc)))
+        self.logger.info('miner %s - [epoch %02d] Validation: %s=%.4f' % (self.node_id, epoch, 'accuracy', float(val_acc)))
 
         epoch_metrics = {'miner_id': self.node_id,
                          'accuracy': float(val_acc)}
@@ -478,10 +477,10 @@ class WorkerNode(CommitteeCandidate):
                 time.sleep(1)
             else:
                 # we are checking if there were any updates from other workers
-                self.receive_and_apply_peer_gradients(epoch)
+                self.receive_and_apply_peer_gradients(epoch, -1)
                 break
 
-    def receive_and_apply_peer_gradients(self, epoch):
+    def receive_and_apply_peer_gradients(self, epoch, step):
         # we are checking if there were any updates from other workers
         self.global_iteration_index = self.get_global_iteration_index()
         self.peer_msg_ids = []
@@ -506,10 +505,11 @@ class WorkerNode(CommitteeCandidate):
             for worker_data in other_workers_data:
                 local_map = worker_data['local_deltas']
                 delta_local = self.decode_map_local(local_map)
-                self.optimizer.apply_gradients(zip(delta_local, self.model.trainable_weights))
+                # self.optimizer.apply_gradients(zip(delta_local, self.model.trainable_weights))
                 self.peer_msg_ids.append(worker_data['message_id'])
 
-            self.logger.debug('Applied {} gradient peer updates'.format(len(other_workers_data)))
+            self.logger.debug('miner %s - [epoch %03d batch %03d] Peer updates: %d' %
+                              (self.node_id, epoch, step, len(other_workers_data)))
         self.last_updated_iteration_index = self.global_iteration_index
 
     def validate_peer_message_ids(self):
