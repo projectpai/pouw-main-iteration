@@ -21,7 +21,7 @@ from pai.pouw.constants import BUCKET, BLOCK_COMMITMENT_INERATIONS_ANNOUNCED
 from pai.pouw.mining.blkmaker.blkmaker import sha256_hexdigest
 from pai.pouw.mining.gbtminer import Miner
 from pai.pouw.mining.utils import get_batch_hash, save_successful_batch, \
-    save_successful_model, file_sha256_hexdigest, get_tensors_hash, get_model_hash
+    file_sha256_hexdigest, get_tensors_hash, get_model_hash, MODEL_DROP_LOCATION
 from pai.pouw.nodes.decentralized.committee_candidate import CommitteeCandidate
 
 
@@ -63,6 +63,7 @@ def main():
         node.miner = MagicMock()
         node.miner.announce_new_block = MagicMock(return_value='')
         node.miner.mine_announced_block = MagicMock(return_value=(False, None))
+        node.miner.submit_block = MagicMock(return_value=None)
 
     node.start_task_listening()
 
@@ -305,7 +306,7 @@ class WorkerNode(CommitteeCandidate):
             lower_grads = tf.math.less_equal(self.residual_gradients[idx], -self.tau)
             map_local.extend(address + (
                     int(up_idx[0] if res_grad.shape.ndims == 1 else up_idx[0] * res_grad.shape[1] + up_idx[1]) | (
-                        1 << 31)) for up_idx in tf.where(tf.equal(upper_grads, True)))
+                    1 << 31)) for up_idx in tf.where(tf.equal(upper_grads, True)))
             map_local.extend(address + (
                     int(lw_idx[0] if res_grad.shape.ndims == 1 else lw_idx[0] * res_grad.shape[1] + lw_idx[1]) & (
                 ~(1 << 31))) for lw_idx in tf.where(tf.equal(lower_grads, True)))
@@ -324,7 +325,6 @@ class WorkerNode(CommitteeCandidate):
                 self.residual_gradients[idx] = tf.math.add(self.residual_gradients[idx], grad)
 
     def train(self):
-        model_path = os.path.join(self.node_output_directory, 'model')
         # ITERATIONS PHASE
         train_acc = 0.0
         for epoch in range(self.task_data['ml']['optimizer']['epochs']):
@@ -361,15 +361,9 @@ class WorkerNode(CommitteeCandidate):
 
                         if block_hex_data:
                             save_successful_batch(x_batch_train, y_batch_train, self.batch_hash)
-
-                            model_filename, model_template, bucket_used = save_successful_model(
-                                os.path.join(self.node_output_directory, 'model'),
-                                self.task_id, model_hash_a, self.node_id)
-                            self.logger.debug('Uploaded {} to bucket {} as key {}'.format(model_filename,
-                                                                                          bucket_used,
-                                                                                          model_template))
+                            self.save_successful_model(model_hash_a)
                             self.miner.submit_block(block_hex_data)
-                            mining_report += " Mining successful!"
+                            mining_report += " - Mining successful!"
                     except JSONRPCException as e:
                         self.logger.warning('[epoch %03d batch %03d] Mining error: %s' % (
                             epoch, step, e.error['message']))
@@ -379,7 +373,8 @@ class WorkerNode(CommitteeCandidate):
 
                 self.logger.debug(
                     'miner %s - [epoch %03d batch %03d] Training: loss= %f accuracy= %.4f' % (
-                        self.node_id, epoch, step, float(loss_value), float(self.train_metric.result())) + mining_report)
+                        self.node_id, epoch, step, float(loss_value),
+                        float(self.train_metric.result())) + mining_report)
 
             train_acc = self.train_metric.result()
 
@@ -388,14 +383,15 @@ class WorkerNode(CommitteeCandidate):
             self.end_of_epoch_node_synchronization(epoch)
             self.report_end_of_epoch_data(epoch)
 
-        self.model.save(model_path + '_f')
+        final_model_path = os.path.join(self.node_output_directory, 'model_f')
+        self.model.save(final_model_path)
         self.logger.info('Saved model to disk')
-        model_hash_f = file_sha256_hexdigest(os.path.join(model_path + '_f', 'saved_model.pb'))
+        model_hash_f = file_sha256_hexdigest(os.path.join(final_model_path, 'saved_model.pb'))
 
         model_key = 'model_{}_{}_{}'.format(self.task_id, self.node_id, self.node_id)
 
-        shutil.copytree(model_path + '_f', os.path.join(BUCKET, model_key))
-        shutil.rmtree(model_path + '_f', ignore_errors=True)
+        shutil.copytree(final_model_path, os.path.join(BUCKET, model_key))
+        shutil.rmtree(final_model_path, ignore_errors=True)
         self.logger.info('Uploaded final model to bucket')
 
         end_result = {
@@ -421,7 +417,8 @@ class WorkerNode(CommitteeCandidate):
         val_acc = self.val_metric.result()
         self.val_metric.reset_states()
 
-        self.logger.info('miner %s - [epoch %02d] Validation: %s=%.4f' % (self.node_id, epoch, 'accuracy', float(val_acc)))
+        self.logger.info(
+            'miner %s - [epoch %02d] Validation: %s=%.4f' % (self.node_id, epoch, 'accuracy', float(val_acc)))
 
         epoch_metrics = {'miner_id': self.node_id,
                          'accuracy': float(val_acc)}
@@ -573,6 +570,16 @@ class WorkerNode(CommitteeCandidate):
                 delta_local_row = tf.zeros_like(self.model.trainable_weights[idx])
             delta_local.append(delta_local_row)
         return delta_local
+
+    def save_successful_model(self, model_hash):
+        iteration_model_drop_location = MODEL_DROP_LOCATION.format(self.task_id, self.node_id, model_hash)
+        os.makedirs(iteration_model_drop_location, exist_ok=True)
+        self.model.save(iteration_model_drop_location)
+        dest = os.path.join(BUCKET, 'models', self.task_id, self.node_id, model_hash)
+        if os.path.isdir(dest):
+            shutil.copy2(iteration_model_drop_location, dest)
+        else:
+            shutil.copytree(iteration_model_drop_location, dest, dirs_exist_ok=True)
 
 
 def get_layer_parameters_from_config(layer_parameters):

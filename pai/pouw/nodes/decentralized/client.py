@@ -239,7 +239,7 @@ class Client:
             segment_label = label[index:segment_index_end]
 
             segment = (segment_data, segment_label)
-            serialized_data = pickle.dumps(segment, protocol=2)
+            serialized_data = pickle.dumps(segment, protocol=0)
             segment_hash = sha256(serialized_data).hexdigest()
 
             segment_location = os.path.join(self.worker_output_directory,
