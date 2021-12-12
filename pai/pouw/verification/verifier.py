@@ -7,17 +7,17 @@ import struct
 import traceback
 import uuid
 
-import mxnet as mx
 import numpy as np
-import yaml
-
-import pai
 import redis
-from mxnet import gluon, autograd
+import tensorflow as tf
+from tensorflow import keras
+
 from pai.pouw.constants import TEMP_FOLDER, BUCKET, BLOCK_COMMITMENT_INERATIONS_ANNOUNCED
 from pai.pouw.mining.gbtminer import Miner
-from pai.pouw.mining.utils import get_batch_hash, file_sha256_hexdigest, file_sha256_digest
-from pai.pouw.nodes.decentralized.worker import get_other_workers_local_data, create_network
+from pai.pouw.mining.utils import get_batch_hash, get_model_hash
+from pai.pouw.nodes.decentralized.message_map import rebuild_delta_local
+from pai.pouw.nodes.decentralized.model_shape import get_shape, get_ranges
+from pai.pouw.nodes.decentralized.worker import get_other_workers_local_data
 from pai.pouw.verification import verifier_pb2
 
 
@@ -73,7 +73,6 @@ def verify_block_commitment(conn, msg_id, worker_id, block_header):
 def verify_iteration(msg_history_id, msg_id, nonce, block_header, redis_host='localhost', redis_port=6379):
     print('\nVERIFY ITERATION(msg_history_id = %s, msg_id = %s, nonce = %s)' % (msg_history_id, msg_id, nonce))
 
-    ctx = mx.cpu()
     conn = redis.Redis(host=redis_host, port=redis_port)
     conn.ping()
 
@@ -90,141 +89,90 @@ def verify_iteration(msg_history_id, msg_id, nonce, block_header, redis_host='lo
     batch_location = it_data['batch_hash']
     model_hash = it_data['model_hash']
 
-    error_code, reason = verify_block_commitment(conn, msg_id, worker_id, block_header)
-    if error_code is not None:
-        print(f'VERIFICATION FAILED -- {reason}')
-        return verifier_pb2.Response(code=error_code,
-                                     description=reason)
+    # TO DO: re-enable this once finished with the other stuff
+    # error_code, reason = verify_block_commitment(conn, msg_id, worker_id, block_header)
+    # if error_code is not None:
+    #     print(f'VERIFICATION FAILED -- {reason}')
+    #     return verifier_pb2.Response(code=error_code,
+    #                                  description=reason)
 
     model_template = 'models/' + task_id + '/' + worker_id + '/' + model_hash + '/model'
     print('Model: %s' % model_template)
 
+    work_dir = str(uuid.uuid4())
     try:
-        os.makedirs(TEMP_FOLDER, exist_ok=True)
-
-        model_file_name = str(uuid.uuid4())
-        model_location = TEMP_FOLDER + model_file_name
-
-        shutil.copyfile(os.path.join(BUCKET, model_template), model_location)
+        os.makedirs(os.path.join(TEMP_FOLDER, work_dir), exist_ok=True)
+        model_location = os.path.join(TEMP_FOLDER, work_dir, 'model')
+        shutil.copytree(os.path.join(BUCKET, model_template), model_location)
 
     except Exception as e:
-        print('download_file exception: %s' % e)
+        print('Download model files exception: %s' % e)
         traceback.print_exc()
-        raise
-
-    try:
-        with open(os.path.join(os.path.dirname(__file__), '../client-task-definition.yaml'), 'r') as request_file:
-            request_data = yaml.load(request_file, yaml.UnsafeLoader)
-
-        ver_net = create_network(request_data['ml']['model'])
-        ver_net.load_parameters(model_location)
-    except Exception as e:
-        print('ver_net exception: %s' % e)
         raise
 
     print('Epoch: %d' % (it_data['epoch']))
 
+    # make locals copies / downloads
     batch_features_template = 'batches/' + batch_location + '/features'
     batch_labels_template = 'batches/' + batch_location + '/labels'
-    batch_features_filename = str(uuid.uuid4())
-    batch_features_location = TEMP_FOLDER + batch_features_filename
-    shutil.copyfile(os.path.join(BUCKET, batch_features_template), batch_features_location)
+    features_file = os.path.join(TEMP_FOLDER, work_dir, 'features')
+    labels_files = os.path.join(TEMP_FOLDER, work_dir, 'labels')
+    shutil.copyfile(os.path.join(BUCKET, batch_features_template), features_file)
+    shutil.copyfile(os.path.join(BUCKET, batch_labels_template), labels_files)
 
-    batch_labels_filename = str(uuid.uuid4())
-    batch_labels_location = TEMP_FOLDER + batch_labels_filename
-    shutil.copyfile(os.path.join(BUCKET, batch_labels_template), batch_labels_location)
+    # model build
+    # inputs = keras.Input(shape=(784,), name="digits")
+    # x = layers.Dense(64, activation="relu", name="dense_1")(inputs)
+    # x = layers.Dense(64, activation="relu", name="dense_2")(x)
+    # outputs = layers.Dense(10, name="predictions")(x)
+    # model = keras.Model(inputs=inputs, outputs=outputs)
 
-    # Trainer is for updating parameters with gradient. We use SGD as optimizer.
-    trainer = gluon.Trainer(ver_net.collect_params(), 'sgd',
-                            {'learning_rate': 1e-3, 'momentum': 0.0})
+    model = tf.keras.models.load_model(model_location)
 
-    # Add metrics: accuracy and cross-entropy loss
-    accuracy = mx.metric.Accuracy()
-    ce_loss = mx.metric.CrossEntropy()
-    comp_metric = mx.metric.CompositeEvalMetric([accuracy, ce_loss])
+    optimizer = keras.optimizers.SGD(learning_rate=1e-3)
+    train_metric = keras.metrics.SparseCategoricalAccuracy()
+    loss_fn = keras.losses.SparseCategoricalCrossentropy(from_logits=True)
+    model.compile(optimizer=optimizer, loss=loss_fn, metrics=[train_metric])
 
-    loss = gluon.loss.SoftmaxCrossEntropyLoss()
     try:
-        data = mx.nd.load(batch_features_location)
-        label = mx.nd.load(batch_labels_location)
+        np_features = np.load(features_file)
+        np_labels = np.load(labels_files)
     except:
         print('VERIFICATION FAILED. Could not load data batch.')
         return verifier_pb2.Response(code=verifier_pb2.Response.NOT_FOUND,
                                      description="Could not load data batch.")
 
-    data = data[0].as_in_context(ctx)
-    label = label[0].as_in_context(ctx)
-
-    comp_metric.reset()
-
     peer_msg_map = it_data['peer_msg_ids']
-
     other_workers_data = get_other_workers_local_data(conn, peer_msg_map)
 
-    # perform gradients modifications here
-    grads = [g.grad(ctx) for g in ver_net.collect_params().values() if g._grad is not None]
+    structure = get_shape(model)
+    ranges = get_ranges(structure)
 
-    gradients_blueprint = [g.shape for g in grads]
-    gradients_sizes = [g.size for g in grads]
-    gradients_cumulative = np.insert(np.cumsum(gradients_sizes), 0, 0)[:-1]
-    zero_setter = np.vectorize(lambda int_type: int_type & (~(1 << 31)), otypes=[np.uint32])
+    # Load model
+    model_hash_actual = get_model_hash(model.trainable_weights)
+    local_map = []
+
+    # TO DO: fetch tau from task definition
+    tau = 10
 
     for worker_data in other_workers_data:
+        peer_map = worker_data['local_deltas']
+        delta_peer = rebuild_delta_local(peer_map, model.trainable_weights, tau,
+                                         structure, ranges)
+        optimizer.apply_gradients(zip(delta_peer, model.trainable_weights))
 
-        local_map = worker_data['local_deltas']
+    for x_batch_train, y_batch_train in tf.data.Dataset.from_tensor_slices((np_features, np_labels)).batch(64):
+        with tf.GradientTape() as tape:
+            logits = model(x_batch_train, training=True)
+            loss_value = loss_fn(y_batch_train, logits)
+        local_map = it_data['local_deltas']
+        delta_local = rebuild_delta_local(local_map, model.trainable_weights, tau,
+                                          structure, ranges)
+        optimizer.apply_gradients(zip(delta_local, model.trainable_weights))
+        train_metric.update_state(y_batch_train, logits)
 
-        deltas = pai.pouw.message_map.decode_message_map(ctx, local_map,
-                                                         gradients_blueprint,
-                                                         gradients_cumulative,
-                                                         worker_data['tau'],
-                                                         zero_setter)
-
-        trainer.allreduce_grads()
-
-        # do back propagation
-        with autograd.record():
-            output = ver_net(data)
-            L = loss(output, label)
-        L.backward()
-
-        for idx, grad in enumerate(grads):
-            grad *= 0
-            grad += deltas[idx].as_in_context(ctx)
-
-        # take a gradient step with batch_size equal to data.shape[0]
-        trainer.update(data.shape[0])
-
-    trainer.allreduce_grads()
-    with autograd.record():
-        output = ver_net(data)
-        L = loss(output, label)
-
-    # do back propagation
-    L.backward()
-
-    weight_indices = it_data['local_deltas']
-    deltas = message_map.decode_message_map(ctx, weight_indices, gradients_blueprint, gradients_cumulative,
-                                            it_data['tau'], zero_setter)
-
-    for idx, grad in enumerate(grads):
-        grad *= 0
-        grad += deltas[idx].as_in_context(ctx)
-
-    # take a gradient step with batch_size equal to data.shape[0]
-    trainer.update(data.shape[0])
-
-    # re-evaluate network output
-    output = ver_net(data)
-
-    # update metrics
-    comp_metric.update([label], [output.softmax()])
-
-    names, metrics = comp_metric.get()
-
-    mini_batch_actual = get_batch_hash(data, label)
+    mini_batch_actual = get_batch_hash(np_features, np_labels)
     mini_batch_provided = it_data['batch_hash']
-
-    model_hash_actual = file_sha256_hexdigest(model_location)
 
     batches_ok = mini_batch_actual == mini_batch_provided
     print('Mini-batch hashes match: %s -> actual : %s | provided: %s' % (
@@ -246,34 +194,32 @@ def verify_iteration(msg_history_id, msg_id, nonce, block_header, redis_host='lo
         return verifier_pb2.Response(code=verifier_pb2.Response.NOT_FOUND,
                                      description="Models don't match.")
 
-    accuracies_ok = metrics[0] == it_data['acc_tr']
+    accuracies_ok = float(train_metric.result()) == it_data['acc_tr']
     print('Accuracies match: %s -> actual : %s | provided: %s' % (
         'YES' if accuracies_ok else 'NO',
-        metrics[0], it_data['acc_tr']))
+        float(train_metric.result()), it_data['acc_tr']))
 
     if not accuracies_ok:
         print('VERIFICATION FAILED')
         return verifier_pb2.Response(code=verifier_pb2.Response.INVALID,
                                      description="Invalid accuracy.\nGot {}, expected {}".format(
-                                         metrics[0], it_data['acc_tr']))
+                                         float(train_metric.result()), it_data['acc_tr']))
 
-    loss_ok = metrics[1] == it_data['j_tr']
+    loss_ok = float(loss_value) == it_data['j_tr']
     print('Loss values match: %s -> actual : %s | provided: %s' % (
         'YES' if loss_ok else 'NO',
-        metrics[1], it_data['j_tr']))
+        float(loss_value), it_data['j_tr']))
 
     if not loss_ok:
         print('VERIFICATION FAILED')
         return verifier_pb2.Response(code=verifier_pb2.Response.INVALID,
                                      description="Invalid loss.\nGot {}, expected {}".format(
-                                         metrics[1], it_data['j_tr']))
+                                         float(loss_value), it_data['j_tr']))
 
     # verify nonce
     os.makedirs(TEMP_FOLDER, exist_ok=True)
 
-    ver_net.save_parameters(TEMP_FOLDER + 'end_it_model')
-    end_it_model_hash = file_sha256_digest(TEMP_FOLDER + 'end_it_model')
-    actual_nonce = Miner.calculate_nonce(end_it_model_hash, weight_indices)
+    actual_nonce = Miner.calculate_nonce(get_model_hash(model.trainable_weights), local_map)
     actual_nonce_int = swap32(int(binascii.hexlify(actual_nonce), 16))
     nonce_ok = actual_nonce_int == nonce
     print('Nonces match: %s -> actual : %s | provided: %s' % (
@@ -286,17 +232,13 @@ def verify_iteration(msg_history_id, msg_id, nonce, block_header, redis_host='lo
                                      description="Nonces don't match.")
 
     # clean up resources
-    if os.path.exists(model_location):
-        os.remove(model_location)
-    if os.path.exists(batch_features_location):
-        os.remove(batch_features_location)
-    if os.path.exists(batch_labels_location):
-        os.remove(batch_labels_location)
-
-    if os.path.isfile(TEMP_FOLDER + 'end_it_model'):
-        os.remove(TEMP_FOLDER + 'end_it_model')
-
+    shutil.rmtree(os.path.join(TEMP_FOLDER, work_dir), ignore_errors=True)
     print('VERIFICATION SUCCESSFUL')
 
     return verifier_pb2.Response(code=verifier_pb2.Response.OK,
                                  description="Verification successful.")
+
+
+if __name__ == '__main__':
+    response = verify_iteration(0, '', '', '')
+    print(1)

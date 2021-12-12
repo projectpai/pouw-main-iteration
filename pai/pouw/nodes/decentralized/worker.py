@@ -1,10 +1,8 @@
 import argparse
 import binascii
 import datetime
-import hashlib
 import json
 import os.path
-import pickle
 import shutil
 import time
 from copy import copy
@@ -23,6 +21,8 @@ from pai.pouw.mining.gbtminer import Miner
 from pai.pouw.mining.utils import get_batch_hash, save_successful_batch, \
     file_sha256_hexdigest, get_tensors_hash, get_model_hash, MODEL_DROP_LOCATION
 from pai.pouw.nodes.decentralized.committee_candidate import CommitteeCandidate
+from pai.pouw.nodes.decentralized.message_map import decode_map_local, rebuild_delta_local
+from pai.pouw.nodes.decentralized.model_shape import get_shape, get_ranges
 
 
 def main():
@@ -78,10 +78,6 @@ def get_other_workers_local_data(redis_conn, additional_iteration_keys):
     return iterations_data
 
 
-def is_upper_threshold(var):
-    return var & (1 << 31) > 0
-
-
 class WorkerNode(CommitteeCandidate):
 
     def __init__(self, redis_host, redis_port, is_debug=False):
@@ -119,17 +115,10 @@ class WorkerNode(CommitteeCandidate):
         self._optimizer = keras.optimizers.SGD(learning_rate=1e-3)
 
         # store structure
-        self._structure = [
-            [w.shape.dims[0].value] if w.shape.ndims == 1 else [w.shape.dims[0].value, w.shape.dims[1].value] for w in
-            self.model.trainable_weights]
+        self._structure = get_shape(self._model)
 
         # store ranges for local map
-        self._ranges = []
-        cumulated = 0
-        for itm in self.structure:
-            prev = cumulated
-            cumulated += (itm[0] if len(itm) == 1 else itm[0] * itm[1])
-            self._ranges.append((prev, cumulated - 1))
+        self._ranges = get_ranges(self._structure)
 
         # set the loss function
         self._loss_fn = keras.losses.SparseCategoricalCrossentropy(from_logits=True)
@@ -271,31 +260,6 @@ class WorkerNode(CommitteeCandidate):
 
     def get_global_iteration_index(self):
         return self.conn.incr('{}_global_iteration_index'.format(self.task_id))
-
-    def decode_map_local(self, map_local):
-        upper_coord = [[] for i in range(len(self.ranges))]
-        lower_coord = [[] for i in range(len(self.ranges))]
-        for m in map_local:
-            is_upper = is_upper_threshold(m)
-            if is_upper:
-                m &= (~(1 << 31))
-
-            for i, r in enumerate(self.ranges):
-                if r[0] <= m <= r[1]:
-                    m -= r[0]
-                    if len(self.structure[i]) == 1:
-                        if is_upper:
-                            upper_coord[i].append([m])
-                        else:
-                            lower_coord[i].append([m])
-                    else:
-                        if is_upper:
-                            upper_coord[i].append([m // self.structure[i][1], m % self.structure[i][1]])
-                        else:
-                            lower_coord[i].append([m // self.structure[i][1], m % self.structure[i][1]])
-                    break
-
-        return upper_coord, lower_coord
 
     def compute_delta_local_and_update_residuals(self):
         delta_local = []
@@ -501,7 +465,8 @@ class WorkerNode(CommitteeCandidate):
 
             for worker_data in other_workers_data:
                 local_map = worker_data['local_deltas']
-                delta_local = self.rebuild_delta_local(local_map)
+                delta_local = rebuild_delta_local(local_map, self.model.trainable_weights, self.tau,
+                                                  self.structure, self.ranges)
                 self.optimizer.apply_gradients(zip(delta_local, self.model.trainable_weights))
                 self.peer_msg_ids.append(worker_data['message_id'])
 
@@ -552,24 +517,6 @@ class WorkerNode(CommitteeCandidate):
         initializer = initializers[self.task_data['ml']['optimizer']['initializer']['name']]
         parameters = self.task_data['ml']['optimizer']['initializer'].get('parameters', {})
         self.model.initialize(initializer(**parameters))
-
-    def rebuild_delta_local(self, map_local):
-        delta_local = []
-        coordinates = self.decode_map_local(map_local)
-        for idx, up_indices in enumerate(coordinates[0]):
-            up_updates = tf.fill([len(up_indices)], self.tau)
-            dw_updates = tf.fill([len(coordinates[1][idx])], -self.tau)
-            updates = tf.concat([up_updates, dw_updates], -1)
-
-            dw_indices = coordinates[1][idx]
-            indices = up_indices + dw_indices
-
-            if len(indices) > 0:
-                delta_local_row = tf.scatter_nd(indices, updates, self.model.trainable_weights[idx].shape)
-            else:
-                delta_local_row = tf.zeros_like(self.model.trainable_weights[idx])
-            delta_local.append(delta_local_row)
-        return delta_local
 
     def save_successful_model(self, model_hash):
         iteration_model_drop_location = MODEL_DROP_LOCATION.format(self.task_id, self.node_id, model_hash)

@@ -17,3 +17,4 @@ python-bitcoinrpc
 pyzmq~=22.1.0
 six~=1.16.0
 setuptools~=57.2.0
+tensorflow~=2.6.0
