@@ -304,9 +304,9 @@ class CommitteeCandidate:
         segments = list(map(functools.partial(yaml.load, Loader=yaml.UnsafeLoader), segments))
 
         samples, labels = [], []
-
+        os.makedirs(os.path.join(self.node_output_directory, 'segments'), exist_ok=True)
         for segment in segments:
-            segment_path = os.path.join(self.node_output_directory, segment['hash'])
+            segment_path = os.path.join(self.node_output_directory, 'segments', 'segment-{}'.format(segment['hash']))
             shutil.copyfile(os.path.join(segment['bucket'], segment['key']), segment_path)
 
             # now we need to validate hash of downloaded segment before continuing

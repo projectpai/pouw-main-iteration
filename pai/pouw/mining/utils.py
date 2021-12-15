@@ -8,9 +8,9 @@ import numpy as np
 
 from pai.pouw.constants import OUTPUT_DIRECTORY, BUCKET
 
-BATCH_DROP_LOCATION = OUTPUT_DIRECTORY + '/drop/batches/batch-{}'
-MODEL_DROP_LOCATION = OUTPUT_DIRECTORY + '/drop/models/task-{}/miner-{}/model-{}'
-BLOCK_DROP_LOCATION = OUTPUT_DIRECTORY + '/blocks'
+BATCH_DROP_LOCATION = OUTPUT_DIRECTORY + '/iterations/batches/batch-{}'
+MODEL_DROP_LOCATION = OUTPUT_DIRECTORY + '/iterations/task-{}/models/miner-{}/model-{}'
+BLOCK_DROP_LOCATION = OUTPUT_DIRECTORY + '/iterations//blocks'
 
 
 def save_batch(name, data, directory, batch_hash):

@@ -351,7 +351,7 @@ class WorkerNode(CommitteeCandidate):
         final_model_path = os.path.join(self.node_output_directory, 'model-{}'.format(model_hash_final))
         self.model.save(final_model_path)
         self.logger.info('miner %s - [saved final model to disk]' % self.node_id)
-        model_key = 'models/task-{}/miner-{}/model-{}'.format(self.task_id, self.node_id, model_hash_final)
+        model_key = 'task-{}/models/miner-{}/model-{}'.format(self.task_id, self.node_id, model_hash_final)
         shutil.copytree(final_model_path, os.path.join(BUCKET, model_key))
         shutil.rmtree(final_model_path, ignore_errors=True)
         self.logger.info('miner %s - [uploaded final model]' % self.node_id)

@@ -243,7 +243,7 @@ class Client:
             segment_hash = sha256(serialized_data).hexdigest()
 
             segment_location = os.path.join(self.worker_output_directory,
-                                            '{}.segment'.format(segment_hash))
+                                            'segment-{}'.format(segment_hash))
             with open(segment_location, 'wb') as segment_file:
                 segment_file.write(serialized_data)
 
@@ -274,7 +274,7 @@ class Client:
             selected_hashes = self.segment_hashes
 
         for index, segment_hash in enumerate(selected_hashes):
-            segment_key = 'segments_{}/{}.segment'.format(self._task_id, segment_hash)
+            segment_key = 'task-{}/segments/segment-{}'.format(self._task_id, segment_hash)
 
             os.makedirs(os.path.dirname(os.path.join(BUCKET, segment_key)), exist_ok=True)
             shutil.copyfile(self._dataset_segments[segment_hash], os.path.join(BUCKET, segment_key))
