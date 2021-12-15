@@ -19,9 +19,9 @@ from pai.pouw.constants import BUCKET, BLOCK_COMMITMENT_INERATIONS_ANNOUNCED
 from pai.pouw.mining.blkmaker.blkmaker import sha256_hexdigest
 from pai.pouw.mining.gbtminer import Miner
 from pai.pouw.mining.utils import get_batch_hash, save_successful_batch, \
-    file_sha256_hexdigest, get_tensors_hash, get_model_hash, MODEL_DROP_LOCATION
+    get_tensors_hash, get_model_hash, MODEL_DROP_LOCATION
 from pai.pouw.nodes.decentralized.committee_candidate import CommitteeCandidate
-from pai.pouw.nodes.decentralized.message_map import decode_map_local, rebuild_delta_local
+from pai.pouw.nodes.decentralized.message_map import rebuild_delta_local
 from pai.pouw.nodes.decentralized.model_shape import get_shape, get_ranges
 
 
@@ -347,23 +347,21 @@ class WorkerNode(CommitteeCandidate):
             self.end_of_epoch_node_synchronization(epoch)
             self.report_end_of_epoch_data(epoch)
 
-        final_model_path = os.path.join(self.node_output_directory, 'model_f')
+        model_hash_final = get_model_hash(self.model.trainable_weights)
+        final_model_path = os.path.join(self.node_output_directory, 'model-{}'.format(model_hash_final))
         self.model.save(final_model_path)
-        self.logger.info('Saved model to disk')
-        model_hash_f = file_sha256_hexdigest(os.path.join(final_model_path, 'saved_model.pb'))
-
-        model_key = 'model_{}_{}_{}'.format(self.task_id, self.node_id, self.node_id)
-
+        self.logger.info('miner %s - [saved final model to disk]' % self.node_id)
+        model_key = 'models/task-{}/miner-{}/model-{}'.format(self.task_id, self.node_id, model_hash_final)
         shutil.copytree(final_model_path, os.path.join(BUCKET, model_key))
         shutil.rmtree(final_model_path, ignore_errors=True)
-        self.logger.info('Uploaded final model to bucket')
+        self.logger.info('miner %s - [uploaded final model]' % self.node_id)
 
         end_result = {
             'worker_signature': self.node_id,
             'j_val': float(loss_value),
             'acc_val': float(train_acc),
             'worker_id': self.node_id,
-            'model_hash': model_hash_f,
+            'model_hash': model_hash_final,
             'bucket': BUCKET,
             'key': model_key
         }
@@ -522,7 +520,7 @@ class WorkerNode(CommitteeCandidate):
         iteration_model_drop_location = MODEL_DROP_LOCATION.format(self.task_id, self.node_id, model_hash)
         os.makedirs(iteration_model_drop_location, exist_ok=True)
         self.model.save(iteration_model_drop_location)
-        dest = os.path.join(BUCKET, 'models', self.task_id, self.node_id, model_hash)
+        dest = os.path.join(BUCKET, 'iterations', 'task-'.format(self.task_id), 'miner-'.format(self.node_id), 'model-'.format(model_hash))
         if os.path.isdir(dest):
             shutil.copy2(iteration_model_drop_location, dest)
         else:

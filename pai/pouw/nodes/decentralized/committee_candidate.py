@@ -75,7 +75,7 @@ class CommitteeCandidate:
 
         # we need to create appropriate folders
         current_date = datetime.datetime.now().strftime('%Y_%m_%d')
-        worker_output_path = os.path.join(OUTPUT_DIRECTORY, current_date, self.task_id, self.node_id)
+        worker_output_path = os.path.join(OUTPUT_DIRECTORY, current_date, 'task-{}'.format(self.task_id), 'miner-{}'.format(self.node_id))
         os.makedirs(worker_output_path, exist_ok=True)
 
         self.node_output_directory = worker_output_path
