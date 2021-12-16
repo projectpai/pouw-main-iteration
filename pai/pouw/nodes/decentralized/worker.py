@@ -1,6 +1,7 @@
 import argparse
 import binascii
 import datetime
+import hashlib
 import json
 import os.path
 import shutil
@@ -19,7 +20,7 @@ from pai.pouw.constants import BUCKET, BLOCK_COMMITMENT_INERATIONS_ANNOUNCED
 from pai.pouw.mining.blkmaker.blkmaker import sha256_hexdigest
 from pai.pouw.mining.gbtminer import Miner
 from pai.pouw.mining.utils import get_batch_hash, save_successful_batch, \
-    get_tensors_hash, get_model_hash, MODEL_DROP_LOCATION
+    get_tensors_hash, get_model_hash
 from pai.pouw.nodes.decentralized.committee_candidate import CommitteeCandidate
 from pai.pouw.nodes.decentralized.message_map import rebuild_delta_local
 from pai.pouw.nodes.decentralized.model_shape import get_shape, get_ranges
@@ -324,8 +325,13 @@ class WorkerNode(CommitteeCandidate):
                             mining_report = " nonce=%s" % binascii.hexlify(nonce).decode('latin1')
 
                         if block_hex_data:
-                            save_successful_batch(x_batch_train, y_batch_train, self.batch_hash)
-                            self.save_successful_model(model_hash_a)
+                            iteration_id = hashlib.sha256((str(epoch) + self.batch_hash + model_hash_a).encode('utf-8')).hexdigest()
+                            save_successful_batch(iteration_id,
+                                                  x_batch_train,
+                                                  y_batch_train,
+                                                  self.task_id, self.node_id,
+                                                  self.batch_hash, self.node_output_directory)
+                            self.save_successful_model(iteration_id, model_hash_a)
                             self.miner.submit_block(block_hex_data)
                             mining_report += " - Mining successful!"
                     except JSONRPCException as e:
@@ -516,11 +522,13 @@ class WorkerNode(CommitteeCandidate):
         parameters = self.task_data['ml']['optimizer']['initializer'].get('parameters', {})
         self.model.initialize(initializer(**parameters))
 
-    def save_successful_model(self, model_hash):
-        iteration_model_drop_location = MODEL_DROP_LOCATION.format(self.task_id, self.node_id, model_hash)
+    def save_successful_model(self, iteration_id, model_hash):
+        iteration_model_drop_location = os.path.join(self.node_output_directory, 'iteration-{}'.format(iteration_id),
+                                                     'model-{}'.format(model_hash))
         os.makedirs(iteration_model_drop_location, exist_ok=True)
         self.model.save(iteration_model_drop_location)
-        dest = os.path.join(BUCKET, 'iterations', 'task-'.format(self.task_id), 'miner-'.format(self.node_id), 'model-'.format(model_hash))
+        dest = os.path.join(BUCKET, 'task-{}'.format(self.task_id), 'miner-{}'.format(self.node_id),
+                            'iteration-{}'.format(iteration_id), 'model-{}'.format(model_hash))
         if os.path.isdir(dest):
             shutil.copy2(iteration_model_drop_location, dest)
         else:

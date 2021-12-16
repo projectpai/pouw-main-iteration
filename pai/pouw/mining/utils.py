@@ -8,26 +8,24 @@ import numpy as np
 
 from pai.pouw.constants import OUTPUT_DIRECTORY, BUCKET
 
-BATCH_DROP_LOCATION = OUTPUT_DIRECTORY + '/iterations/batches/batch-{}'
-MODEL_DROP_LOCATION = OUTPUT_DIRECTORY + '/iterations/task-{}/models/miner-{}/model-{}'
 BLOCK_DROP_LOCATION = OUTPUT_DIRECTORY + '/iterations//blocks'
 
 
-def save_batch(name, data, directory, batch_hash):
-    filename = os.path.join(directory, name)
+def save_batch(iteration_id, name, data, base_output_folder, task_id, miner_id, batch_hash):
+    drop_location = os.path.join(base_output_folder, 'iteration-{}'.format(iteration_id), 'batch-{}'.format(batch_hash))
+    os.makedirs(drop_location, exist_ok=True)
+    filename = os.path.join(drop_location, name)
     with open(filename, 'wb') as f:
         np.save(f, data.numpy())
-    batch_template = 'batches/' + batch_hash + '/' + name
-    os.makedirs(os.path.join(BUCKET, 'batches', 'batch-{}'.format(batch_hash)), exist_ok=True)
-    copyfile(filename, os.path.join(BUCKET, batch_template))
+    remote_location = os.path.join(BUCKET, 'task-{}'.format(task_id), 'miner-{}'.format(miner_id),
+                                   'iteration-{}'.format(iteration_id), 'batch-{}'.format(batch_hash))
+    os.makedirs(remote_location, exist_ok=True)
+    copyfile(filename, os.path.join(remote_location, name))
 
 
-def save_successful_batch(data, label, batch_hash):
-    directory = BATCH_DROP_LOCATION.format(batch_hash)
-    os.makedirs(directory, exist_ok=True)
-
-    save_batch('features', data, directory, batch_hash)
-    save_batch('labels', label, directory, batch_hash)
+def save_successful_batch(iteration_id, data, label, task_id, miner_id, batch_hash, local_drop_location):
+    save_batch(iteration_id, 'features', data, local_drop_location, task_id, miner_id, batch_hash)
+    save_batch(iteration_id, 'labels', label, local_drop_location, task_id, miner_id, batch_hash)
 
 
 def get_batch_hash(data, label):
