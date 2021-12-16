@@ -4,7 +4,7 @@ PACKAGE_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(
 DATA_DIRECTORY = os.path.join(PACKAGE_ROOT, 'data')
 OUTPUT_DIRECTORY = os.path.join(PACKAGE_ROOT, 'output')
 OMEGA = (10 ** (-12))
-TEMP_FOLDER = '/tmp/pai-pouw/'
+TEMP_FOLDER = '/tmp/valdi-pouw/'
 
 BUCKET = None
 BUCKET_ENV_VAR = "POUW_BUCKET"

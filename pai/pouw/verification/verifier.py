@@ -1,5 +1,6 @@
 import binascii
 import datetime
+import hashlib
 import json
 import os
 import shutil
@@ -84,10 +85,11 @@ def verify_iteration(msg_history_id, msg_id, nonce, block_header, redis_host='lo
                                      description="Message not found in Redis.")
 
     it_data = iterations_data[0]
-    worker_id = it_data['signature']
+    miner_id = it_data['signature']
     task_id = it_data['task_id']
-    batch_location = it_data['batch_hash']
+    batch_hash = it_data['batch_hash']
     model_hash = it_data['model_hash']
+    epoch = it_data['epoch']
 
     # TO DO: re-enable this once finished with the other stuff
     # error_code, reason = verify_block_commitment(conn, msg_id, worker_id, block_header)
@@ -96,14 +98,15 @@ def verify_iteration(msg_history_id, msg_id, nonce, block_header, redis_host='lo
     #     return verifier_pb2.Response(code=error_code,
     #                                  description=reason)
 
-    model_template = 'models/' + task_id + '/' + worker_id + '/' + model_hash + '/model'
-    print('Model: %s' % model_template)
+    iteration_location = 'task-{}/miner-{}/iteration-{}/'.format(task_id, miner_id, hashlib.sha256((str(epoch) + batch_hash + model_hash).encode('utf-8')).hexdigest())
+    model_location = iteration_location + 'model-{}'.format(model_hash)
+    print('Model: %s' % model_location)
 
     work_dir = str(uuid.uuid4())
     try:
         os.makedirs(os.path.join(TEMP_FOLDER, work_dir), exist_ok=True)
-        model_location = os.path.join(TEMP_FOLDER, work_dir, 'model')
-        shutil.copytree(os.path.join(BUCKET, model_template), model_location)
+        local_model_location = os.path.join(TEMP_FOLDER, work_dir, 'model')
+        shutil.copytree(os.path.join(BUCKET, model_location), local_model_location)
 
     except Exception as e:
         print('Download model files exception: %s' % e)
@@ -113,12 +116,11 @@ def verify_iteration(msg_history_id, msg_id, nonce, block_header, redis_host='lo
     print('Epoch: %d' % (it_data['epoch']))
 
     # make locals copies / downloads
-    batch_features_template = 'batches/' + batch_location + '/features'
-    batch_labels_template = 'batches/' + batch_location + '/labels'
+    batch_location = iteration_location + 'batch-{}'.format(batch_hash)
     features_file = os.path.join(TEMP_FOLDER, work_dir, 'features')
     labels_files = os.path.join(TEMP_FOLDER, work_dir, 'labels')
-    shutil.copyfile(os.path.join(BUCKET, batch_features_template), features_file)
-    shutil.copyfile(os.path.join(BUCKET, batch_labels_template), labels_files)
+    shutil.copyfile(os.path.join(BUCKET, batch_location, 'features'), features_file)
+    shutil.copyfile(os.path.join(BUCKET, batch_location, 'labels'), labels_files)
 
     # model build
     # inputs = keras.Input(shape=(784,), name="digits")
@@ -127,12 +129,12 @@ def verify_iteration(msg_history_id, msg_id, nonce, block_header, redis_host='lo
     # outputs = layers.Dense(10, name="predictions")(x)
     # model = keras.Model(inputs=inputs, outputs=outputs)
 
-    model = tf.keras.models.load_model(model_location)
+    model = tf.keras.models.load_model(local_model_location)
 
-    optimizer = keras.optimizers.SGD(learning_rate=1e-3)
-    train_metric = keras.metrics.SparseCategoricalAccuracy()
-    loss_fn = keras.losses.SparseCategoricalCrossentropy(from_logits=True)
-    model.compile(optimizer=optimizer, loss=loss_fn, metrics=[train_metric])
+    # optimizer = keras.optimizers.SGD(learning_rate=1e-3)
+    # train_metric = keras.metrics.SparseCategoricalAccuracy()
+    # loss_fn = keras.losses.SparseCategoricalCrossentropy(from_logits=True)
+    # model.compile(optimizer=optimizer, loss=loss_fn, metrics=[train_metric])
 
     try:
         np_features = np.load(features_file)
@@ -154,7 +156,9 @@ def verify_iteration(msg_history_id, msg_id, nonce, block_header, redis_host='lo
 
     # TO DO: fetch tau from task definition
     tau = 10
-
+    optimizer = model.optimizer
+    train_metric = model.metrics[1]
+    loss_fn = model.loss
     for worker_data in other_workers_data:
         peer_map = worker_data['local_deltas']
         delta_peer = rebuild_delta_local(peer_map, model.trainable_weights, tau,
@@ -240,5 +244,5 @@ def verify_iteration(msg_history_id, msg_id, nonce, block_header, redis_host='lo
 
 
 if __name__ == '__main__':
-    response = verify_iteration(0, '', '', '')
+    response = verify_iteration(0, 'it_res_c1b7713f6913b75b0c99dbf6159344b54243216542b207dbbf4e18e38a94ca6d_0_1', '', '')
     print(1)
