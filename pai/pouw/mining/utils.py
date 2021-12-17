@@ -28,13 +28,6 @@ def save_successful_batch(iteration_id, data, label, task_id, miner_id, batch_ha
     save_batch(iteration_id, 'labels', label, local_drop_location, task_id, miner_id, batch_hash)
 
 
-def get_batch_hash(data, label):
-    return hashlib.sha256(
-        str(np.array2string(data.numpy(), formatter={'float_kind': lambda x: "%.4f" % x}) +
-            np.array2string(label.numpy(),
-                            formatter={'float_kind': lambda x: "%.4f" % x})).encode('latin1')).hexdigest()
-
-
 def get_tensors_hash(tensors):
     tensors_concat = np.concatenate([w.numpy().ravel() for w in tensors])
     tensors_hash = hashlib.sha256(pickle.dumps(tensors_concat, protocol=0)).hexdigest()

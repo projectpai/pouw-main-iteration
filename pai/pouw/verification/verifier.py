@@ -11,11 +11,10 @@ import uuid
 import numpy as np
 import redis
 import tensorflow as tf
-from tensorflow import keras
 
 from pai.pouw.constants import TEMP_FOLDER, BUCKET, BLOCK_COMMITMENT_INERATIONS_ANNOUNCED
 from pai.pouw.mining.gbtminer import Miner
-from pai.pouw.mining.utils import get_batch_hash, get_model_hash
+from pai.pouw.mining.utils import get_model_hash
 from pai.pouw.nodes.decentralized.message_map import rebuild_delta_local
 from pai.pouw.nodes.decentralized.model_shape import get_shape, get_ranges
 from pai.pouw.nodes.decentralized.worker import get_other_workers_local_data
@@ -71,6 +70,13 @@ def verify_block_commitment(conn, msg_id, worker_id, block_header):
     return None, None
 
 
+def get_batch_hash_for_numpy(data, label):
+    return hashlib.sha256(
+        str(np.array2string(data, formatter={'float_kind': lambda x: "%.4f" % x}) +
+            np.array2string(label,
+                            formatter={'float_kind': lambda x: "%.4f" % x})).encode('latin1')).hexdigest()
+
+
 def verify_iteration(msg_history_id, msg_id, nonce, block_header, redis_host='localhost', redis_port=6379):
     print('\nVERIFY ITERATION(msg_history_id = %s, msg_id = %s, nonce = %s)' % (msg_history_id, msg_id, nonce))
 
@@ -122,6 +128,22 @@ def verify_iteration(msg_history_id, msg_id, nonce, block_header, redis_host='lo
     shutil.copyfile(os.path.join(BUCKET, batch_location, 'features'), features_file)
     shutil.copyfile(os.path.join(BUCKET, batch_location, 'labels'), labels_files)
 
+    np_features = np.load(features_file)
+    np_labels = np.load(labels_files)
+
+    mini_batch_actual = get_batch_hash_for_numpy(np_features, np_labels)
+    mini_batch_provided = it_data['batch_hash']
+
+    batches_ok = mini_batch_actual == mini_batch_provided
+    print('Mini-batch hashes match: %s -> actual : %s | provided: %s' % (
+        'YES' if batches_ok else 'NO',
+        mini_batch_actual, mini_batch_provided))
+
+    if not batches_ok:
+        print('VERIFICATION FAILED')
+        return verifier_pb2.Response(code=verifier_pb2.Response.NOT_FOUND,
+                                     description="Batches don't match.")
+
     # model build
     # inputs = keras.Input(shape=(784,), name="digits")
     # x = layers.Dense(64, activation="relu", name="dense_1")(inputs)
@@ -129,23 +151,15 @@ def verify_iteration(msg_history_id, msg_id, nonce, block_header, redis_host='lo
     # outputs = layers.Dense(10, name="predictions")(x)
     # model = keras.Model(inputs=inputs, outputs=outputs)
 
-    model = tf.keras.models.load_model(local_model_location)
-
     # optimizer = keras.optimizers.SGD(learning_rate=1e-3)
     # train_metric = keras.metrics.SparseCategoricalAccuracy()
     # loss_fn = keras.losses.SparseCategoricalCrossentropy(from_logits=True)
     # model.compile(optimizer=optimizer, loss=loss_fn, metrics=[train_metric])
 
-    try:
-        np_features = np.load(features_file)
-        np_labels = np.load(labels_files)
-    except:
-        print('VERIFICATION FAILED. Could not load data batch.')
-        return verifier_pb2.Response(code=verifier_pb2.Response.NOT_FOUND,
-                                     description="Could not load data batch.")
-
     peer_msg_map = it_data['peer_msg_ids']
     other_workers_data = get_other_workers_local_data(conn, peer_msg_map)
+
+    model = tf.keras.models.load_model(local_model_location)
 
     structure = get_shape(model)
     ranges = get_ranges(structure)
@@ -174,19 +188,6 @@ def verify_iteration(msg_history_id, msg_id, nonce, block_header, redis_host='lo
                                           structure, ranges)
         optimizer.apply_gradients(zip(delta_local, model.trainable_weights))
         train_metric.update_state(y_batch_train, logits)
-
-    mini_batch_actual = get_batch_hash(np_features, np_labels)
-    mini_batch_provided = it_data['batch_hash']
-
-    batches_ok = mini_batch_actual == mini_batch_provided
-    print('Mini-batch hashes match: %s -> actual : %s | provided: %s' % (
-        'YES' if batches_ok else 'NO',
-        mini_batch_actual, mini_batch_provided))
-
-    if not batches_ok:
-        print('VERIFICATION FAILED')
-        return verifier_pb2.Response(code=verifier_pb2.Response.NOT_FOUND,
-                                     description="Batches don't match.")
 
     models_ok = model_hash_actual == model_hash
     print('Model hashes match: %s -> actual : %s | provided: %s' % (

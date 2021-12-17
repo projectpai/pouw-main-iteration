@@ -19,7 +19,7 @@ from tensorflow.keras import layers
 from pai.pouw.constants import BUCKET, BLOCK_COMMITMENT_INERATIONS_ANNOUNCED
 from pai.pouw.mining.blkmaker.blkmaker import sha256_hexdigest
 from pai.pouw.mining.gbtminer import Miner
-from pai.pouw.mining.utils import get_batch_hash, save_successful_batch, \
+from pai.pouw.mining.utils import save_successful_batch, \
     get_tensors_hash, get_model_hash
 from pai.pouw.nodes.decentralized.committee_candidate import CommitteeCandidate
 from pai.pouw.nodes.decentralized.message_map import rebuild_delta_local
@@ -298,7 +298,7 @@ class WorkerNode(CommitteeCandidate):
                 # save the model initial parameters
                 model_hash_a = get_model_hash(self.model.trainable_weights)
                 self.receive_and_apply_peer_gradients(epoch, step)
-                self.batch_hash = get_batch_hash(x_batch_train, y_batch_train)
+                self.batch_hash = self.get_batch_hash_for_tensors(x_batch_train, y_batch_train)
 
                 with tf.GradientTape() as tape:
                     logits = self.model(x_batch_train, training=True)
@@ -533,6 +533,13 @@ class WorkerNode(CommitteeCandidate):
             shutil.copy2(iteration_model_drop_location, dest)
         else:
             shutil.copytree(iteration_model_drop_location, dest, dirs_exist_ok=True)
+
+    @staticmethod
+    def get_batch_hash_for_tensors(data, label):
+        return hashlib.sha256(
+            str(np.array2string(data.numpy(), formatter={'float_kind': lambda x: "%.4f" % x}) +
+                np.array2string(label.numpy(),
+                                formatter={'float_kind': lambda x: "%.4f" % x})).encode('latin1')).hexdigest()
 
 
 def get_layer_parameters_from_config(layer_parameters):
