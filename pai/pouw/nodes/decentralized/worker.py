@@ -12,6 +12,7 @@ from distutils.util import strtobool
 import numpy as np
 import tensorflow as tf
 from bitcoinrpc.proxy import JSONRPCException
+from keras.models import clone_model
 from mock import MagicMock
 from tensorflow import keras
 from tensorflow.keras import layers
@@ -295,8 +296,11 @@ class WorkerNode(CommitteeCandidate):
         for epoch in range(self.task_data['ml']['optimizer']['epochs']):
             for step, (x_batch_train, y_batch_train) in enumerate(self.train_dataset):
                 it_ts = datetime.datetime.now()
-                # save the model initial parameters
+
+                initial_model = clone_model(self._model)
+                initial_model.set_weights(self.model.get_weights())
                 model_hash_a = get_model_hash(self.model.trainable_weights)
+
                 self.receive_and_apply_peer_gradients(epoch, step)
                 self.batch_hash = self.get_batch_hash_for_tensors(x_batch_train, y_batch_train)
 
@@ -331,7 +335,7 @@ class WorkerNode(CommitteeCandidate):
                                                   y_batch_train,
                                                   self.task_id, self.node_id,
                                                   self.batch_hash, self.node_output_directory)
-                            self.save_successful_model(iteration_id, model_hash_a)
+                            self.save_successful_model(initial_model, iteration_id, model_hash_a)
                             self.miner.submit_block(block_hex_data)
                             mining_report += " - Mining successful!"
                     except JSONRPCException as e:
@@ -522,11 +526,11 @@ class WorkerNode(CommitteeCandidate):
         parameters = self.task_data['ml']['optimizer']['initializer'].get('parameters', {})
         self.model.initialize(initializer(**parameters))
 
-    def save_successful_model(self, iteration_id, model_hash):
+    def save_successful_model(self, initial_model, iteration_id, model_hash):
         iteration_model_drop_location = os.path.join(self.node_output_directory, 'iteration-{}'.format(iteration_id),
                                                      'model-{}'.format(model_hash))
         os.makedirs(iteration_model_drop_location, exist_ok=True)
-        self.model.save(iteration_model_drop_location)
+        initial_model.save(iteration_model_drop_location)
         dest = os.path.join(BUCKET, 'task-{}'.format(self.task_id), 'miner-{}'.format(self.node_id),
                             'iteration-{}'.format(iteration_id), 'model-{}'.format(model_hash))
         if os.path.isdir(dest):

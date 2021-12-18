@@ -144,6 +144,10 @@ def verify_iteration(msg_history_id, msg_id, nonce, block_header, redis_host='lo
         return verifier_pb2.Response(code=verifier_pb2.Response.NOT_FOUND,
                                      description="Batches don't match.")
 
+    # Load model
+    model = tf.keras.models.load_model(local_model_location)
+    model_hash_actual = get_model_hash(model.trainable_weights)
+
     # model build
     # inputs = keras.Input(shape=(784,), name="digits")
     # x = layers.Dense(64, activation="relu", name="dense_1")(inputs)
@@ -158,14 +162,20 @@ def verify_iteration(msg_history_id, msg_id, nonce, block_header, redis_host='lo
 
     peer_msg_map = it_data['peer_msg_ids']
     other_workers_data = get_other_workers_local_data(conn, peer_msg_map)
+    models_ok = model_hash_actual == model_hash
+    print('Model hashes match: %s -> actual : %s | provided: %s' % (
+        'YES' if models_ok else 'NO',
+        model_hash_actual, model_hash))
 
-    model = tf.keras.models.load_model(local_model_location)
+    if not models_ok:
+        print('VERIFICATION FAILED')
+        return verifier_pb2.Response(code=verifier_pb2.Response.NOT_FOUND,
+                                     description="Models don't match.")
 
     structure = get_shape(model)
     ranges = get_ranges(structure)
 
-    # Load model
-    model_hash_actual = get_model_hash(model.trainable_weights)
+
     local_map = []
 
     # TO DO: fetch tau from task definition
@@ -188,16 +198,6 @@ def verify_iteration(msg_history_id, msg_id, nonce, block_header, redis_host='lo
                                           structure, ranges)
         optimizer.apply_gradients(zip(delta_local, model.trainable_weights))
         train_metric.update_state(y_batch_train, logits)
-
-    models_ok = model_hash_actual == model_hash
-    print('Model hashes match: %s -> actual : %s | provided: %s' % (
-        'YES' if models_ok else 'NO',
-        model_hash_actual, model_hash))
-
-    if not models_ok:
-        print('VERIFICATION FAILED')
-        return verifier_pb2.Response(code=verifier_pb2.Response.NOT_FOUND,
-                                     description="Models don't match.")
 
     accuracies_ok = float(train_metric.result()) == it_data['acc_tr']
     print('Accuracies match: %s -> actual : %s | provided: %s' % (
@@ -245,5 +245,5 @@ def verify_iteration(msg_history_id, msg_id, nonce, block_header, redis_host='lo
 
 
 if __name__ == '__main__':
-    response = verify_iteration(0, 'it_res_c1b7713f6913b75b0c99dbf6159344b54243216542b207dbbf4e18e38a94ca6d_0_1', '', '')
+    response = verify_iteration(0, 'it_res_a14d96148aed4e0100b86761689e77498b347b3e6e18cd567e657c0ba4ac2b8f_0_1', '', '')
     print(1)
