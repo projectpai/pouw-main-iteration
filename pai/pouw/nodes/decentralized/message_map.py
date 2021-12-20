@@ -46,5 +46,5 @@ def rebuild_delta_local(map_local, trainable_weights, tau, structure, ranges):
             delta_local_row = tf.scatter_nd(indices, updates, trainable_weights[idx].shape)
         else:
             delta_local_row = tf.zeros_like(trainable_weights[idx])
-        delta_local.append(delta_local_row)
+        delta_local.append(tf.cast(delta_local_row, tf.float32))
     return delta_local

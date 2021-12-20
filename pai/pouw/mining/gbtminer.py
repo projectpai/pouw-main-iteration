@@ -85,7 +85,7 @@ class Miner:
     @staticmethod
     def calculate_nonce(end_it_model_hash, local_message_map):
         serialized_local_weights = serialize_local_message_map(local_message_map)
-        nonce_input = end_it_model_hash + serialized_local_weights
+        nonce_input = end_it_model_hash.encode() + serialized_local_weights
         nonce_precursor = sha256_digest(nonce_input)
         return sha256_digest(nonce_precursor)[:4]
 

@@ -156,9 +156,6 @@ def verify_iteration(msg_history_id, msg_id, nonce, block_header, redis_host='lo
     # model = keras.Model(inputs=inputs, outputs=outputs)
 
     # optimizer = keras.optimizers.SGD(learning_rate=1e-3)
-    # train_metric = keras.metrics.SparseCategoricalAccuracy()
-    # loss_fn = keras.losses.SparseCategoricalCrossentropy(from_logits=True)
-    # model.compile(optimizer=optimizer, loss=loss_fn, metrics=[train_metric])
 
     peer_msg_map = it_data['peer_msg_ids']
     other_workers_data = get_other_workers_local_data(conn, peer_msg_map)
@@ -181,6 +178,9 @@ def verify_iteration(msg_history_id, msg_id, nonce, block_header, redis_host='lo
     # TO DO: fetch tau from task definition
     tau = 10
     optimizer = model.optimizer
+    # train_metric = tf.keras.metrics.SparseCategoricalAccuracy()
+    # loss_fn = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
+    # model.compile(optimizer=optimizer, loss=loss_fn, metrics=[train_metric])
     train_metric = model.metrics[1]
     loss_fn = model.loss
     for worker_data in other_workers_data:
@@ -189,7 +189,7 @@ def verify_iteration(msg_history_id, msg_id, nonce, block_header, redis_host='lo
                                          structure, ranges)
         optimizer.apply_gradients(zip(delta_peer, model.trainable_weights))
 
-    for x_batch_train, y_batch_train in tf.data.Dataset.from_tensor_slices((np_features, np_labels)).batch(64):
+    for x_batch_train, y_batch_train in tf.data.Dataset.from_tensor_slices((np_features, np_labels)).batch(100):
         with tf.GradientTape() as tape:
             logits = model(x_batch_train, training=True)
             loss_value = loss_fn(y_batch_train, logits)
@@ -245,5 +245,4 @@ def verify_iteration(msg_history_id, msg_id, nonce, block_header, redis_host='lo
 
 
 if __name__ == '__main__':
-    response = verify_iteration(0, 'it_res_a14d96148aed4e0100b86761689e77498b347b3e6e18cd567e657c0ba4ac2b8f_0_1', '', '')
-    print(1)
+    response = verify_iteration(0, 'it_res_75c7c3fd1a26abd38a3b81ec6a3f145a1abe92464f7941f5dd854674d8fbc532_0_1', '', '')

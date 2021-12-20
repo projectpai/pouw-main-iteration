@@ -335,6 +335,8 @@ class WorkerNode(CommitteeCandidate):
                                                   y_batch_train,
                                                   self.task_id, self.node_id,
                                                   self.batch_hash, self.node_output_directory)
+                            initial_model.compile(optimizer=self.model.optimizer, loss=self.loss_fn,
+                                                  metrics=[self.train_metric])
                             self.save_successful_model(initial_model, iteration_id, model_hash_a)
                             self.miner.submit_block(block_hex_data)
                             mining_report += " - Mining successful!"
