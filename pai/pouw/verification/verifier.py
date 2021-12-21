@@ -104,7 +104,8 @@ def verify_iteration(msg_history_id, msg_id, nonce, block_header, redis_host='lo
     #     return verifier_pb2.Response(code=error_code,
     #                                  description=reason)
 
-    iteration_location = 'task-{}/miner-{}/iteration-{}/'.format(task_id, miner_id, hashlib.sha256((str(epoch) + batch_hash + model_hash).encode('utf-8')).hexdigest())
+    iteration_location = 'task-{}/miner-{}/iteration-{}/'.format(task_id, miner_id, hashlib.sha256(
+        (str(epoch) + batch_hash + model_hash).encode('utf-8')).hexdigest())
     model_location = iteration_location + 'model-{}'.format(model_hash)
     print('Model: %s' % model_location)
 
@@ -148,15 +149,6 @@ def verify_iteration(msg_history_id, msg_id, nonce, block_header, redis_host='lo
     model = tf.keras.models.load_model(local_model_location)
     model_hash_actual = get_model_hash(model.trainable_weights)
 
-    # model build
-    # inputs = keras.Input(shape=(784,), name="digits")
-    # x = layers.Dense(64, activation="relu", name="dense_1")(inputs)
-    # x = layers.Dense(64, activation="relu", name="dense_2")(x)
-    # outputs = layers.Dense(10, name="predictions")(x)
-    # model = keras.Model(inputs=inputs, outputs=outputs)
-
-    # optimizer = keras.optimizers.SGD(learning_rate=1e-3)
-
     peer_msg_map = it_data['peer_msg_ids']
     other_workers_data = get_other_workers_local_data(conn, peer_msg_map)
     models_ok = model_hash_actual == model_hash
@@ -172,17 +164,11 @@ def verify_iteration(msg_history_id, msg_id, nonce, block_header, redis_host='lo
     structure = get_shape(model)
     ranges = get_ranges(structure)
 
-
     local_map = []
-
-    # TO DO: fetch tau from task definition
-    tau = 10
+    tau = float(it_data['tau'])
     optimizer = model.optimizer
-    # train_metric = tf.keras.metrics.SparseCategoricalAccuracy()
-    # loss_fn = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
-    # model.compile(optimizer=optimizer, loss=loss_fn, metrics=[train_metric])
-    train_metric = model.metrics[1]
     loss_fn = model.loss
+
     for worker_data in other_workers_data:
         peer_map = worker_data['local_deltas']
         delta_peer = rebuild_delta_local(peer_map, model.trainable_weights, tau,
@@ -197,18 +183,6 @@ def verify_iteration(msg_history_id, msg_id, nonce, block_header, redis_host='lo
         delta_local = rebuild_delta_local(local_map, model.trainable_weights, tau,
                                           structure, ranges)
         optimizer.apply_gradients(zip(delta_local, model.trainable_weights))
-        train_metric.update_state(y_batch_train, logits)
-
-    accuracies_ok = float(train_metric.result()) == it_data['acc_tr']
-    print('Accuracies match: %s -> actual : %s | provided: %s' % (
-        'YES' if accuracies_ok else 'NO',
-        float(train_metric.result()), it_data['acc_tr']))
-
-    if not accuracies_ok:
-        print('VERIFICATION FAILED')
-        return verifier_pb2.Response(code=verifier_pb2.Response.INVALID,
-                                     description="Invalid accuracy.\nGot {}, expected {}".format(
-                                         float(train_metric.result()), it_data['acc_tr']))
 
     loss_ok = float(loss_value) == it_data['j_tr']
     print('Loss values match: %s -> actual : %s | provided: %s' % (
@@ -245,4 +219,5 @@ def verify_iteration(msg_history_id, msg_id, nonce, block_header, redis_host='lo
 
 
 if __name__ == '__main__':
-    response = verify_iteration(0, 'it_res_75c7c3fd1a26abd38a3b81ec6a3f145a1abe92464f7941f5dd854674d8fbc532_0_1', '', '')
+    response = verify_iteration(0, 'it_res_73fdc50323552e564cb031186747f258d463a230bfd5793eb6737f1165fa8eda_0_384', '',
+                                '')

@@ -475,9 +475,9 @@ class WorkerNode(CommitteeCandidate):
 
             for worker_data in other_workers_data:
                 local_map = worker_data['local_deltas']
-                delta_local = rebuild_delta_local(local_map, self.model.trainable_weights, self.tau,
+                delta_peer = rebuild_delta_local(local_map, self.model.trainable_weights, self.tau,
                                                   self.structure, self.ranges)
-                self.optimizer.apply_gradients(zip(delta_local, self.model.trainable_weights))
+                self.optimizer.apply_gradients(zip(delta_peer, self.model.trainable_weights))
                 self.peer_msg_ids.append(worker_data['message_id'])
 
             self.logger.debug('miner %s - [epoch %03d batch %03d] Peer updates: %d' %
