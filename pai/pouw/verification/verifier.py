@@ -142,6 +142,7 @@ def verify_iteration(msg_history_id, msg_id, nonce, block_header, redis_host='lo
 
     if not batches_ok:
         print('VERIFICATION FAILED')
+        shutil.rmtree(os.path.join(TEMP_FOLDER, work_dir), ignore_errors=True)
         return verifier_pb2.Response(code=verifier_pb2.Response.NOT_FOUND,
                                      description="Batches don't match.")
 
@@ -158,6 +159,7 @@ def verify_iteration(msg_history_id, msg_id, nonce, block_header, redis_host='lo
 
     if not models_ok:
         print('VERIFICATION FAILED')
+        shutil.rmtree(os.path.join(TEMP_FOLDER, work_dir), ignore_errors=True)
         return verifier_pb2.Response(code=verifier_pb2.Response.NOT_FOUND,
                                      description="Models don't match.")
 
@@ -191,6 +193,7 @@ def verify_iteration(msg_history_id, msg_id, nonce, block_header, redis_host='lo
 
     if not loss_ok:
         print('VERIFICATION FAILED')
+        shutil.rmtree(os.path.join(TEMP_FOLDER, work_dir), ignore_errors=True)
         return verifier_pb2.Response(code=verifier_pb2.Response.INVALID,
                                      description="Invalid loss.\nGot {}, expected {}".format(
                                          float(loss_value), it_data['j_tr']))
@@ -207,6 +210,7 @@ def verify_iteration(msg_history_id, msg_id, nonce, block_header, redis_host='lo
 
     if not nonce_ok:
         print('VERIFICATION FAILED')
+        shutil.rmtree(os.path.join(TEMP_FOLDER, work_dir), ignore_errors=True)
         return verifier_pb2.Response(code=verifier_pb2.Response.INVALID,
                                      description="Nonces don't match.")
 
@@ -219,5 +223,5 @@ def verify_iteration(msg_history_id, msg_id, nonce, block_header, redis_host='lo
 
 
 if __name__ == '__main__':
-    response = verify_iteration(0, 'it_res_73fdc50323552e564cb031186747f258d463a230bfd5793eb6737f1165fa8eda_0_384', '',
+    response = verify_iteration(0, 'it_res_c69376717c43ebba2fd6da877438daac0f8ff029a8fd838e4db63f25e1acde3d_0_129', '',
                                 '')
