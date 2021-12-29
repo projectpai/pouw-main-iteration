@@ -97,12 +97,10 @@ def verify_iteration(msg_history_id, msg_id, nonce, block_header, redis_host='lo
     model_hash = it_data['model_hash']
     epoch = it_data['epoch']
 
-    # TO DO: re-enable this once finished with the other stuff
-    # error_code, reason = verify_block_commitment(conn, msg_id, worker_id, block_header)
-    # if error_code is not None:
-    #     print(f'VERIFICATION FAILED -- {reason}')
-    #     return verifier_pb2.Response(code=error_code,
-    #                                  description=reason)
+    error_code, reason = verify_block_commitment(conn, msg_id, miner_id, block_header)
+    if error_code is not None:
+        print(f'VERIFICATION FAILED -- {reason}')
+        return verifier_pb2.Response(code=error_code, description=reason)
 
     iteration_location = 'task-{}/miner-{}/iteration-{}/'.format(task_id, miner_id, hashlib.sha256(
         (str(epoch) + batch_hash + model_hash).encode('utf-8')).hexdigest())
