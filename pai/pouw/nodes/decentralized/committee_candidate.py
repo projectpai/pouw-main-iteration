@@ -134,7 +134,7 @@ class CommitteeCandidate:
             self.distribute_training_segments(segments)
 
         self.logger.info("Started ml network initialization")
-        # self.initialize_network()
+        self.build_model()
         samples, labels = self.collect_training_segments()
 
         self.synchronize_training_nodes()
@@ -378,7 +378,7 @@ class CommitteeCandidate:
         self.logger.info('Initializing training process')
 
     @abc.abstractmethod
-    def initialize_network(self):
+    def build_model(self):
         pass
 
     def disable_registration_for_client_task(self):

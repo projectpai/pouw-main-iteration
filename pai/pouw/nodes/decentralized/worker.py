@@ -86,10 +86,6 @@ class WorkerNode(CommitteeCandidate):
         CommitteeCandidate.__init__(self, redis_host, redis_port, is_debug)
 
         # the hash of the current batch
-        self.batch_hash = None
-
-        # set the threshold for residual gradient
-        self.tau = None
 
         self._peer_msg_ids = []
         self._consumed_peer_msg_ids = []
@@ -102,43 +98,20 @@ class WorkerNode(CommitteeCandidate):
 
         self.miner = None
 
-        # NEW CODE --------------------------------------------
         self._residual_gradients = None
-        self._tau = 10
-        # add the default MNIST model
-
-        inputs = keras.Input(shape=(784,), name="digits")
-        x = layers.Dense(64, activation="relu", name="dense_1")(inputs)
-        x = layers.Dense(64, activation="relu", name="dense_2")(x)
-        outputs = layers.Dense(10, name="predictions")(x)
-        self._model = keras.Model(inputs=inputs, outputs=outputs)
-
-        # set the default optimizer
-        self._optimizer = keras.optimizers.SGD(learning_rate=1e-3)
-
-        # store structure
-        self._structure = get_shape(self._model)
-
-        # store ranges for local map
-        self._ranges = get_ranges(self._structure)
-
-        # set the loss function
-        self._loss_fn = keras.losses.SparseCategoricalCrossentropy(from_logits=True)
-
-        # prepare the metrics
-        self._train_metric = keras.metrics.SparseCategoricalAccuracy()
-        self._val_metric = keras.metrics.SparseCategoricalAccuracy()
-
-        # set proper compilation for model
-        self._model.compile(optimizer=self.optimizer, loss=self.loss_fn, metrics=[self.train_metric])
-
-        # set the batch size
-        self._batch_size = 64
-
-        # datasets
+        self._loss_fn = None
         self._train_dataset = None
         self._val_dataset = None
         self._test_dataset = None
+        self._val_metric = None
+        self._model = None
+        self._structure = None
+        self._ranges = None
+        self._optimizer = None
+        self.tau = None
+        self.batch_hash = None
+        self._batch_size = None
+        self._train_metric = None
 
     @property
     def model(self):
@@ -202,7 +175,7 @@ class WorkerNode(CommitteeCandidate):
 
     @loss_fn.setter
     def loss_fn(self, value):
-        self.loss_fn = value
+        self._loss_fn = value
 
     @property
     def batch_size(self):
@@ -258,7 +231,21 @@ class WorkerNode(CommitteeCandidate):
         self._consumed_peer_msg_ids = []
         self.last_updated_iteration_index = 0
         self.global_iteration_index = 0
+
+        self._residual_gradients = None
+        self._loss_fn = None
+        self._train_dataset = None
+        self._val_dataset = None
+        self._test_dataset = None
+        self._val_metric = None
+        self._model = None
+        self._structure = None
+        self._ranges = None
+        self._optimizer = None
         self.tau = None
+        self.batch_hash = None
+        self._batch_size = None
+        self._train_metric = None
 
     def get_global_iteration_index(self):
         return self.conn.incr('{}_global_iteration_index'.format(self.task_id))
@@ -546,6 +533,38 @@ class WorkerNode(CommitteeCandidate):
             str(np.array2string(data.numpy(), formatter={'float_kind': lambda x: "%.4f" % x}) +
                 np.array2string(label.numpy(),
                                 formatter={'float_kind': lambda x: "%.4f" % x})).encode('latin1')).hexdigest()
+
+    def build_model(self):
+        if self.task_data['ml']['model']['type'] == 'FC-DNN':
+            inputs = keras.Input(shape=(784,), name="digits")
+            x = layers.Dense(64, activation="relu", name="dense_1")(inputs)
+            x = layers.Dense(64, activation="relu", name="dense_2")(x)
+            outputs = layers.Dense(10, name="predictions")(x)
+
+            self.model = keras.Model(inputs=inputs, outputs=outputs)
+
+            # set the default optimizer
+            if self.task_data['ml']['optimizer']['type'] == 'SGD':
+                lr = float(self.task_data['ml']['optimizer']['optimizer_initialization_parameters']['learning_rate'])
+                self.optimizer = keras.optimizers.SGD(learning_rate=lr)
+            else:
+                raise Exception('Unknown optimizer!')
+
+            # store structure
+            self.structure = get_shape(self.model)
+
+            # store ranges for local map
+            self.ranges = get_ranges(self.structure)
+
+            # set the loss function
+            self.loss_fn = keras.losses.SparseCategoricalCrossentropy(from_logits=True)
+
+            # prepare the metrics
+            self.train_metric = keras.metrics.SparseCategoricalAccuracy()
+            self.val_metric = keras.metrics.SparseCategoricalAccuracy()
+
+            # set proper compilation for model
+            self.model.compile(optimizer=self.optimizer, loss=self.loss_fn, metrics=[self.train_metric])
 
 
 def get_layer_parameters_from_config(layer_parameters):
