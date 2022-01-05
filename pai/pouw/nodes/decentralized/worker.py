@@ -500,21 +500,6 @@ class WorkerNode(CommitteeCandidate):
         self.reset_network_state()
         return training_result
 
-    def initialize_network(self):
-        self.model = create_network(self.task_data['ml']['model'])
-        initializers = {
-            'Xavier': tf.keras.initializers.GlorotNormal,
-            'Constant': tf.keras.initializers.Constant,
-            'Normal': tf.keras.initializers.RandomNormal,
-            'One': tf.keras.initializers.Ones,
-            'Orthogonal': tf.keras.initializers.Orthogonal,
-            'Uniform': tf.keras.initializers.RandomUniform,
-            'Zero': tf.keras.initializers.Zeros
-        }
-        initializer = initializers[self.task_data['ml']['optimizer']['initializer']['name']]
-        parameters = self.task_data['ml']['optimizer']['initializer'].get('parameters', {})
-        self.model.initialize(initializer(**parameters))
-
     def save_successful_model(self, initial_model, iteration_id, model_hash):
         iteration_model_drop_location = os.path.join(self.node_output_directory, 'iteration-{}'.format(iteration_id),
                                                      'model-{}'.format(model_hash))
@@ -535,10 +520,27 @@ class WorkerNode(CommitteeCandidate):
                                 formatter={'float_kind': lambda x: "%.4f" % x})).encode('latin1')).hexdigest()
 
     def build_model(self):
+
+        layer_types = {
+            'Input': keras.Input,
+            'Dense': tf.keras.layers.Dense,
+            'Dropout': tf.keras.layers.Dropout,
+            'BatchNorm': tf.keras.layers.BatchNormalization,
+            'LayerNorm': tf.keras.layers.LayerNormalization,
+            'Embedding': tf.keras.layers.Embedding,
+            'Flatten': tf.keras.layers.Flatten
+        }
+
         if self.task_data['ml']['model']['type'] == 'FC-DNN':
             inputs = keras.Input(shape=(784,), name="digits")
-            x = layers.Dense(64, activation="relu", name="dense_1")(inputs)
-            x = layers.Dense(64, activation="relu", name="dense_2")(x)
+            x = None
+            for idx, layer in enumerate(self.task_data['ml']['model']['layers']):
+                layer_class = layer_types[layer['type']]
+                layer_parameters = get_layer_parameters_from_config(layer)
+                if idx == 0:
+                    x = layer_class(**layer_parameters)(inputs)
+                else:
+                    x = layer_class(**layer_parameters)(x)
             outputs = layers.Dense(10, name="predictions")(x)
 
             self.model = keras.Model(inputs=inputs, outputs=outputs)
@@ -569,35 +571,8 @@ class WorkerNode(CommitteeCandidate):
 
 def get_layer_parameters_from_config(layer_parameters):
     layer = copy(layer_parameters)
-    del layer['id']
     del layer['type']
-
-    if 'nodes' in layer:
-        layer['units'] = layer['nodes']
-        del layer['nodes']
-
     return layer
-
-
-def create_network(model_data):
-    net = tf.keras.Sequential()
-
-    layer_types = {
-        'Dense': tf.keras.layers.Dense,
-        'Dropout': tf.keras.layers.Dropout,
-        'BatchNorm': tf.keras.layers.BatchNormalization,
-        'LayerNorm': tf.keras.layers.LayerNormalization,
-        'Embedding': tf.keras.layers.Embedding,
-        'Flatten': tf.keras.layers.Flatten
-
-    }
-
-    with net.name_scope():
-        for layer in model_data['layers']:
-            layer_class = layer_types[layer['type']]
-            layer_parameters = get_layer_parameters_from_config(layer)
-            net.add(layer_class(**layer_parameters))
-    return net
 
 
 if __name__ == '__main__':

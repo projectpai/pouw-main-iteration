@@ -34,17 +34,14 @@ ml:
   model:
     type: FC-DNN
     layers:
-      - id: 'layer1'
+      - name: 'dense_1'
         type: Dense
-        nodes: 128
+        units: 64
         activation: relu
-      - id: 'layer2'
+      - name: 'dense_2'
         type: Dense
-        nodes: 64
+        units: 64
         activation: relu
-      - id: 'output'
-        type: Dense
-        nodes: 10
     loss: SoftmaxCrossEntropyLoss
 
   evaluation-metrics:
