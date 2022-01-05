@@ -593,7 +593,7 @@ def create_network(model_data):
     }
 
     with net.name_scope():
-        for layer in model_data['hidden-units']:
+        for layer in model_data['layers']:
             layer_class = layer_types[layer['type']]
             layer_parameters = get_layer_parameters_from_config(layer)
             net.add(layer_class(**layer_parameters))

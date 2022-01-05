@@ -7,7 +7,7 @@ std.manifestYamlDoc({
     "model": {
       "loss": "SoftmaxCrossEntropyLoss",
       "type": "FC-DNN",
-      "hidden-units": [
+      "layers": [
         {
           "nodes": 128,
           "type": "Dense",

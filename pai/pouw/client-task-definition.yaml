@@ -33,7 +33,7 @@ ml:
 
   model:
     type: FC-DNN
-    hidden-units:
+    layers:
       - id: 'layer1'
         type: Dense
         nodes: 128

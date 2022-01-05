@@ -91,7 +91,7 @@ def get_task_details(task_id, redis_host='localhost', redis_port=6379):
                                       completed_epochs=completed_epochs_no, epochs_metrics=epochs_details_list)
         return TaskDetailsResponse(code=HTTPReturnCode.OK,
                                    task_id=task_id, model_type=task_details['ml']['model']['type'],
-                                   nodes_no=sum([hu['nodes'] for hu in task_details['ml']['model']['hidden-units']]),
+                                   nodes_no=sum([hu['nodes'] for hu in task_details['ml']['model']['layers']]),
                                    batch_size=task_details['ml']['optimizer']['batch-size'],
                                    optimizer=task_details['ml']['optimizer']['type'],
                                    created=get_grpc_timestamp(task_details),
@@ -140,7 +140,7 @@ def pack_task_list(task_ids, page, per_page, conn):
             proto_timestamp = get_grpc_timestamp(task_details)
 
             task_record = TaskRecord(task_id=task_id, model_type=task_details['ml']['model']['type'],
-                                     nodes_no=sum([hu['nodes'] for hu in task_details['ml']['model']['hidden-units']]),
+                                     nodes_no=sum([hu['nodes'] for hu in task_details['ml']['model']['layers']]),
                                      batch_size=task_details['ml']['optimizer']['batch-size'],
                                      optimizer=task_details['ml']['optimizer']['type'],
                                      created=proto_timestamp)

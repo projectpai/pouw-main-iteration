@@ -11,7 +11,7 @@ from pai.pouw.nodes.decentralized.worker import create_network, get_layer_parame
 def test_create_network_fc_dnn():
     model_data = {
         'type': 'FC-DNN',
-        'hidden-units': [
+        'layers': [
             {
                 'id': 'layer1',
                 'type': 'Dense',
@@ -41,7 +41,7 @@ def test_create_network_fc_dnn():
 def test_create_network_hidden_units_number_properly_initialized(layer_number):
     model_data = {
         'type': 'FC-DNN',
-        'hidden-units': [
+        'layers': [
             {
                 'id': 'output',
                 'type': 'Dense',
@@ -61,7 +61,7 @@ def test_create_network_hidden_units_number_properly_initialized(layer_number):
     for index in range(layer_number):
         new_layer = copy(layer)
         new_layer['id'] += str(index)
-        model_data['hidden-units'].insert(0, new_layer)
+        model_data['layers'].insert(0, new_layer)
 
     network = create_network(model_data)
     assert len(network) == layer_number + 1
@@ -71,7 +71,7 @@ def test_create_network_hidden_units_number_properly_initialized(layer_number):
 def test_create_network_node_number_in_dense_layer(node_number):
     model_data = {
         'type': 'FC-DNN',
-        'hidden-units': [
+        'layers': [
             {
                 'id': 'layer1',
                 'type': 'Dense',
@@ -109,7 +109,7 @@ def test_get_layer_parameters_from_config_simple():
 def test_create_network_dropout_layer():
     model_data = {
         'type': 'FC-DNN',
-        'hidden-units': [
+        'layers': [
             {
                 'id': 'layer1',
                 'type': 'Dense',
@@ -137,7 +137,7 @@ def test_create_network_dropout_layer():
 def test_create_network_batch_normalization_layer():
     model_data = {
         'type': 'FC-DNN',
-        'hidden-units': [
+        'layers': [
             {
                 'id': 'layer1',
                 'type': 'Dense',
@@ -164,7 +164,7 @@ def test_create_network_batch_normalization_layer():
 def test_create_network_instance_normalization_layer():
     model_data = {
         'type': 'FC-DNN',
-        'hidden-units': [
+        'layers': [
             {
                 'id': 'layer1',
                 'type': 'Dense',
@@ -191,7 +191,7 @@ def test_create_network_instance_normalization_layer():
 def test_create_network_layer_normalization():
     model_data = {
         'type': 'FC-DNN',
-        'hidden-units': [
+        'layers': [
             {
                 'id': 'layer1',
                 'type': 'Dense',
@@ -218,7 +218,7 @@ def test_create_network_layer_normalization():
 def test_create_network_embedding_layer():
     model_data = {
         'type': 'FC-DNN',
-        'hidden-units': [
+        'layers': [
             {
                 'id': 'layer1',
                 'type': 'Dense',
@@ -247,7 +247,7 @@ def test_create_network_embedding_layer():
 def test_create_network_flatten_layer():
     model_data = {
         'type': 'FC-DNN',
-        'hidden-units': [
+        'layers': [
             {
                 'id': 'layer1',
                 'type': 'Dense',
