@@ -34,6 +34,9 @@ ml:
   model:
     type: FC-DNN
     layers:
+      - name: 'digits'
+        type: Input
+        shape: !!python/tuple [784,]
       - name: 'dense_1'
         type: Dense
         units: 64
@@ -42,6 +45,9 @@ ml:
         type: Dense
         units: 64
         activation: relu
+      - name: 'predictions'
+        type: Dense
+        units: 10
     loss: SoftmaxCrossEntropyLoss
 
   evaluation-metrics:

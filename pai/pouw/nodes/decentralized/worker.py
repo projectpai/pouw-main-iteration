@@ -532,16 +532,19 @@ class WorkerNode(CommitteeCandidate):
         }
 
         if self.task_data['ml']['model']['type'] == 'FC-DNN':
-            inputs = keras.Input(shape=(784,), name="digits")
-            x = None
+            inputs, x, outputs = None, None, None
+            last_idx = len(self.task_data['ml']['model']['layers']) - 1
             for idx, layer in enumerate(self.task_data['ml']['model']['layers']):
                 layer_class = layer_types[layer['type']]
                 layer_parameters = get_layer_parameters_from_config(layer)
                 if idx == 0:
-                    x = layer_class(**layer_parameters)(inputs)
+                    inputs = layer_class(**layer_parameters)
+                    x = inputs
+                elif idx == last_idx:
+                    x = layer_class(**layer_parameters)(x)
+                    outputs = x
                 else:
                     x = layer_class(**layer_parameters)(x)
-            outputs = layers.Dense(10, name="predictions")(x)
 
             self.model = keras.Model(inputs=inputs, outputs=outputs)
 
