@@ -176,7 +176,7 @@ class CommitteeCandidate:
             if key not in self.task_data:
                 raise ValueError('Task data must contain {} root key'.format(key))
 
-        ml_parameter_keys = ['dataset', 'validation', 'optimizer', 'model', 'evaluation-metrics']
+        ml_parameter_keys = ['dataset', 'validation', 'optimizer', 'model', 'metrics', 'loss', 'epochs', 'batch-size', 'tau']
         for key in ml_parameter_keys:
             if key not in self.task_data['ml']:
                 raise ValueError('Task data must contain machine learning parameters for {}'.format(key))

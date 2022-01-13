@@ -54,7 +54,7 @@ def test_validate_request_data_missing_root_key(key, client_task_definition_data
         node.validate_request_data()
 
 
-@pytest.mark.parametrize('key', ['dataset', 'validation', 'optimizer', 'model', 'evaluation-metrics'])
+@pytest.mark.parametrize('key', ['dataset', 'validation', 'optimizer', 'model', 'metrics'])
 def test_validate_request_data_missing_ml_parameter_key(key, client_task_definition_data):
     node = CommitteeCandidate()
     node.task_data = client_task_definition_data

@@ -304,7 +304,7 @@ class Client:
             if key not in task_data:
                 raise ValueError('Task definition must contain {} key'.format(key))
 
-        for key in ['dataset', 'validation', 'optimizer', 'model', 'evaluation-metrics']:
+        for key in ['dataset', 'validation', 'optimizer', 'model', 'metrics', 'loss', 'epochs', 'tau', 'batch-size']:
             if key not in task_data['ml']:
                 raise ValueError('ML Task definition configuration must contain {} key'.format(key))
 

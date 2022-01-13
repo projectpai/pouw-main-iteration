@@ -97,9 +97,9 @@ def get_task_details(task_id, redis_host='localhost', redis_port=6379):
                                    created=get_grpc_timestamp(task_details),
                                    dataset=task_details['ml']['dataset']['format'],
                                    initializer=task_details['ml']['optimizer']['initializer']['name'],
-                                   loss_function=task_details['ml']['model']['loss'],
+                                   loss_function=task_details['ml']['loss'],
                                    tau=task_details['ml']['tau'],
-                                   evaluation_metrics=task_details['ml']['evaluation-metrics'],
+                                   evaluation_metrics=task_details['ml']['metrics'],
                                    epochs_info=epoch_details)
 
     # task is not found

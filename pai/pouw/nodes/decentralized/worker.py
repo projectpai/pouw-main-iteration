@@ -550,7 +550,7 @@ class WorkerNode(CommitteeCandidate):
 
             # set the default optimizer
             if self.task_data['ml']['optimizer']['type'] == 'SGD':
-                lr = float(self.task_data['ml']['optimizer']['optimizer_initialization_parameters']['learning_rate'])
+                lr = float(self.task_data['ml']['optimizer']['learning_rate'])
                 self.optimizer = keras.optimizers.SGD(learning_rate=lr)
             else:
                 raise Exception('Unknown optimizer!')
@@ -562,11 +562,22 @@ class WorkerNode(CommitteeCandidate):
             self.ranges = get_ranges(self.structure)
 
             # set the loss function
-            self.loss_fn = keras.losses.SparseCategoricalCrossentropy(from_logits=True)
+            if self.task_data['ml']['loss'] == 'SparseCategoricalCrossentropy':
+                self.loss_fn = keras.losses.SparseCategoricalCrossentropy(from_logits=True)
+            elif self.task_data['ml']['loss'] == 'MeanSquaredError':
+                self.loss_fn = keras.losses.MeanSquaredError()
+            else:
+                raise Exception('Unknown loss function')
 
             # prepare the metrics
-            self.train_metric = keras.metrics.SparseCategoricalAccuracy()
-            self.val_metric = keras.metrics.SparseCategoricalAccuracy()
+            if self.task_data['ml']['metrics'] == 'SparseCategoricalAccuracy':
+                self.train_metric = keras.metrics.SparseCategoricalAccuracy()
+                self.val_metric = keras.metrics.SparseCategoricalAccuracy()
+            elif self.task_data['ml']['metrics'] == 'RootMeanSquaredError':
+                self.train_metric = keras.metrics.RootMeanSquaredError()
+                self.val_metric = keras.metrics.RootMeanSquaredError()
+            else:
+                raise Exception('Unknown metric')
 
             # set proper compilation for model
             self.model.compile(optimizer=self.optimizer, loss=self.loss_fn, metrics=[self.train_metric])
