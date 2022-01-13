@@ -171,8 +171,10 @@ class Client:
         self.batch_size = int(self._cluster_request_data['ml']['optimizer']['batch-size'])
         if self._cluster_request_data['ml']['dataset']['format'] == 'CSV':
             train_data = self._load_csv_dataset()
-        else:
+        elif self._cluster_request_data['ml']['dataset']['format'] == 'MNIST':
             train_data = self._load_mnist_dataset()
+        else:
+            raise Exception('Unknown data format')
 
         return train_data
 
