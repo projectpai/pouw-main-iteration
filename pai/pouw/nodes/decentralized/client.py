@@ -168,7 +168,7 @@ class Client:
         self.logger.info('Send dataset hashes for allocating')
 
     def load_dataset(self):
-        self.batch_size = int(self._cluster_request_data['ml']['optimizer']['batch-size'])
+        self.batch_size = int(self._cluster_request_data['ml']['batch-size'])
         if self._cluster_request_data['ml']['dataset']['format'] == 'CSV':
             train_data = self._load_csv_dataset()
         elif self._cluster_request_data['ml']['dataset']['format'] == 'MNIST':
@@ -217,7 +217,7 @@ class Client:
 
         # train_data = gluon.data.DataLoader(
         #     dataset_normed,
-        #     batch_size=self._cluster_request_data['ml']['optimizer']['batch-size'],
+        #     batch_size=self._cluster_request_data['ml']['batch-size'],
         #     shuffle=True, last_batch='discard')
 
         return None

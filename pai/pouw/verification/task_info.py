@@ -87,18 +87,18 @@ def get_task_details(task_id, redis_host='localhost', redis_port=6379):
 
     if task_details is not None:
         completed_epochs_no, epochs_details_list = get_completed_epochs(conn, task_id)
-        epoch_details = EpochsDetails(total_epochs=task_details['ml']['optimizer']['epochs'],
+        epoch_details = EpochsDetails(total_epochs=task_details['ml']['epochs'],
                                       completed_epochs=completed_epochs_no, epochs_metrics=epochs_details_list)
         return TaskDetailsResponse(code=HTTPReturnCode.OK,
                                    task_id=task_id, model_type=task_details['ml']['model']['type'],
                                    nodes_no=sum([hu['nodes'] for hu in task_details['ml']['model']['layers']]),
-                                   batch_size=task_details['ml']['optimizer']['batch-size'],
+                                   batch_size=task_details['ml']['batch-size'],
                                    optimizer=task_details['ml']['optimizer']['type'],
                                    created=get_grpc_timestamp(task_details),
                                    dataset=task_details['ml']['dataset']['format'],
                                    initializer=task_details['ml']['optimizer']['initializer']['name'],
                                    loss_function=task_details['ml']['model']['loss'],
-                                   tau=task_details['ml']['optimizer']['tau'],
+                                   tau=task_details['ml']['tau'],
                                    evaluation_metrics=task_details['ml']['evaluation-metrics'],
                                    epochs_info=epoch_details)
 
@@ -141,7 +141,7 @@ def pack_task_list(task_ids, page, per_page, conn):
 
             task_record = TaskRecord(task_id=task_id, model_type=task_details['ml']['model']['type'],
                                      nodes_no=sum([hu['nodes'] for hu in task_details['ml']['model']['layers']]),
-                                     batch_size=task_details['ml']['optimizer']['batch-size'],
+                                     batch_size=task_details['ml']['batch-size'],
                                      optimizer=task_details['ml']['optimizer']['type'],
                                      created=proto_timestamp)
         else:

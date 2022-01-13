@@ -280,7 +280,7 @@ class WorkerNode(CommitteeCandidate):
     def train(self):
         # ITERATIONS PHASE
         train_acc = 0.0
-        for epoch in range(self.task_data['ml']['optimizer']['epochs']):
+        for epoch in range(self.task_data['ml']['epochs']):
             for step, (x_batch_train, y_batch_train) in enumerate(self.train_dataset):
                 it_ts = datetime.datetime.now()
 
@@ -477,8 +477,8 @@ class WorkerNode(CommitteeCandidate):
             raise RuntimeError('Collected peer_ids can not be bigger than global index')
 
     def start_training(self, samples, labels):
-        self.tau = self.task_data['ml']['optimizer']['tau']
-        self.batch_size = self.task_data['ml']['optimizer']['batch-size']
+        self.tau = self.task_data['ml']['tau']
+        self.batch_size = self.task_data['ml']['batch-size']
         validation_size = self.task_data['ml']['validation']['strategy']['size']
 
         index_split = int(validation_size * len(samples))

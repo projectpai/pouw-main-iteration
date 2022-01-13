@@ -4,6 +4,10 @@ payment:
   best-model-payment-amount: 0.03
 
 ml:
+  epochs: 30
+  batch-size: 100
+  tau: 12.0
+
   dataset:
     format: MNIST
     train-size: 0.85714285715
@@ -18,9 +22,6 @@ ml:
     optimizer_initialization_parameters:
       learning_rate: 1e-3
       momentum: 0.0
-    tau: 12.0
-    epochs: 30
-    batch-size: 100
     initializer:
       name: Xavier
       parameters:
