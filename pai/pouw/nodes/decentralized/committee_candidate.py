@@ -208,7 +208,7 @@ class CommitteeCandidate:
 
         self.logger.info("Started waiting for list of segment data from client")
         test_subset_index = int(
-            len(self.segment_hash_table) * self.task_data['ml']['dataset']['test-set-size'])
+            len(self.segment_hash_table) * (1.00 - self.task_data['ml']['dataset']['train-size']))
 
         while len(segment_data) < len(self.segment_hash_table) - test_subset_index:
             segment_data = self.conn.lrange(self._client_response_listening_channel, 0, -1)

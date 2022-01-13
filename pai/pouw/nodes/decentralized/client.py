@@ -265,7 +265,7 @@ class Client:
 
     def send_data_segments_to_cluster(self):
         test_subset_index = int(
-            len(self.segment_hashes) * self._cluster_request_data['ml']['dataset']['test-set-size'])
+            len(self.segment_hashes) * (1.00 - self._cluster_request_data['ml']['dataset']['train-size']))
 
         self.logger.info('Started sending dataset segments to cluster')
         if test_subset_index:
