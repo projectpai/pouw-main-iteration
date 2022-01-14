@@ -15,7 +15,6 @@ from bitcoinrpc.proxy import JSONRPCException
 from keras.models import clone_model
 from mock import MagicMock
 from tensorflow import keras
-from tensorflow.keras import layers
 
 from pai.pouw.constants import BUCKET, BLOCK_COMMITMENT_INERATIONS_ANNOUNCED
 from pai.pouw.mining.blkmaker.blkmaker import sha256_hexdigest
@@ -335,7 +334,7 @@ class WorkerNode(CommitteeCandidate):
                             epoch, step, e))
 
                 self.logger.debug(
-                    'miner %s - [epoch %03d batch %03d] Training: loss= %f accuracy= %.4f' % (
+                    'miner %s - [epoch %03d batch %03d] Training: loss= %f metric= %.4f' % (
                         self.node_id, epoch, step, float(loss_value),
                         float(self.train_metric.result())) + mining_report)
 
@@ -357,8 +356,8 @@ class WorkerNode(CommitteeCandidate):
 
         end_result = {
             'worker_signature': self.node_id,
-            'j_val': float(loss_value),
-            'acc_val': float(train_acc),
+            'loss_val': float(loss_value),
+            'metric_val': float(train_acc),
             'worker_id': self.node_id,
             'model_hash': model_hash_final,
             'bucket': BUCKET,
@@ -375,18 +374,18 @@ class WorkerNode(CommitteeCandidate):
             val_logits = self.model(x_batch_val, training=False)
             # Update val metrics
             self.val_metric.update_state(y_batch_val, val_logits)
-        val_acc = self.val_metric.result()
+        metric_value = self.val_metric.result()
         self.val_metric.reset_states()
 
         self.logger.info(
-            'miner %s - [epoch %02d] Validation: %s=%.4f' % (self.node_id, epoch, 'accuracy', float(val_acc)))
+            'miner %s - [epoch %02d] Validation: %s=%.4f' % (self.node_id, epoch, 'metric_val', float(metric_value)))
 
         epoch_metrics = {'miner_id': self.node_id,
-                         'accuracy': float(val_acc)}
+                         'metric_val': float(metric_value)}
 
         self.conn.rpush('epoch_details_{}_{}'.format(self.task_id, epoch), json.dumps(epoch_metrics))
 
-    def send_gradient_updates(self, epoch, weight_indexes, loss, accuracy,
+    def send_gradient_updates(self, epoch, weight_indexes, loss, metric_value,
                               start_time, znb_hash, initial_model_hash):
         self.validate_peer_message_ids()
 
@@ -403,7 +402,7 @@ class WorkerNode(CommitteeCandidate):
                    'batch_hash': self.batch_hash,
                    'local_deltas': weight_indexes,
                    'j_tr': loss,
-                   'acc_tr': accuracy,
+                   'metric_tr': metric_value,
                    'ts': str(start_time),
                    'tf': str(datetime.datetime.now()),
                    'epoch': epoch,

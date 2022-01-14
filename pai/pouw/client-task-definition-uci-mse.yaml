@@ -1,0 +1,54 @@
+version:  0.1
+
+payment:
+  best-model-payment-amount: 0.03
+
+ml:
+  epochs: 30
+  batch-size: 32
+  tau: 12.0
+
+  dataset:
+    format: CSV
+    source: 'data_clean.csv'
+    remove-features:
+      - 'Filename'
+      - 'docket_number'
+      - 'remanded'
+      - 'result text'
+    labels:
+      - 'result'
+    features-scaler: RobustScaler
+    labels-scaler: RobustScaler
+    train-size: 0.9
+
+  validation:
+    strategy: 
+      method: Holdout
+      size: 0.1
+
+  optimizer:
+    type:  SGD
+    learning_rate: 1e-3
+
+  model:
+    type: FC-DNN
+    layers:
+      - name: 'digits'
+        type: Input
+        shape: !!python/tuple [94,]
+      - name: 'dense_1'
+        type: Dense
+        units: 64
+        activation: relu
+      - name: 'dense_2'
+        type: Dense
+        units: 64
+        activation: relu
+      - name: 'predictions'
+        type: Dense
+        units: 4
+
+  loss: MeanSquaredError
+
+  metrics: RootMeanSquaredError

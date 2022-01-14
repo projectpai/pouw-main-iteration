@@ -37,5 +37,5 @@ segment download
 - Cluster then distributes segments to nodes and starts training using newly created
 redis cluster
 - Upon completion cluster sends to client P2P message TRAINING_COMPLETED which contains
-model accuracy and links on the bucket for their download
+model metric value and links on the bucket for their download
 - Cluster is then disbanded and rewards is distributed to nodes 

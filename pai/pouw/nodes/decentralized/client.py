@@ -12,8 +12,10 @@ from hashlib import sha256
 from logging.handlers import RotatingFileHandler
 
 import numpy as np
+import pandas as pd
 import redis
 import yaml
+from sklearn.model_selection import train_test_split
 from tensorflow import keras
 
 from pai import POUW_ROOT_PATH
@@ -191,36 +193,47 @@ class Client:
 
         return np.vstack([x_train, x_test]), np.append(y_train, y_test)
 
+    def get_data_exceptions(self):
+        return self._cluster_request_data['ml']['dataset']['remove-features']
+
+    def get_labels(self):
+        return self._cluster_request_data['ml']['dataset']['labels']
+
+    def get_features_scaler(self):
+        return self._cluster_request_data['ml']['dataset']['features-scaler']
+
+    def get_labels_scaler(self):
+        return self._cluster_request_data['ml']['dataset']['labels-scaler']
+
     def _load_csv_dataset(self):
-        csv_path = self.get_csv_path()
-        # TODO implement paramterization of which column should be transformed into nominal data
-        # TODO enable delimiter parametrization
-        recorded_values = []
+        file_name = self.get_csv_path()
+        x_all = pd.read_csv(file_name)
 
-        def str_to_nom(value):
-            if value not in recorded_values:
-                recorded_values.append(value)
-            return float(recorded_values.index(value))
+        data_exceptions = self.get_data_exceptions()
+        labels = self.get_labels()
 
-        dataset = np.loadtxt(csv_path,
-                             converters={
-                                 0: str_to_nom
-                             }, delimiter=",", )
+        y_all = x_all[labels]
+        data_exceptions.extend(labels)
+        for data_ex in data_exceptions:
+            del x_all[data_ex]
 
-        # normalize dataset
-        # TODO add normalization to task parametrization
-        dataset_normed = dataset / dataset.max(axis=0)
+        np_features = x_all.to_numpy()
+        features_scaler = self.get_features_scaler()
+        if features_scaler is not None:
+            features_scaler.fit(np_features)
+            np_features = features_scaler.transform(np_features)
 
-        # we are making assumption that last value is value we need to predict
-        # TODO add parametrization of label column
-        # dataset_normeyd = gluon.data.ArrayDataset(dataset_normed[:, :-1], dataset_normed[:, -1])
+        np_labels = y_all.to_numpy()
+        labels_scaler = self.get_labels_scaler()
+        if labels_scaler is not None:
+            labels_scaler.fit(np_labels)
+            np_labels = labels_scaler.transform(np_labels)
+        x_train, x_test, y_train, y_test = train_test_split(np_features, np_labels, test_size=0.3, random_state=42)
 
-        # train_data = gluon.data.DataLoader(
-        #     dataset_normed,
-        #     batch_size=self._cluster_request_data['ml']['batch-size'],
-        #     shuffle=True, last_batch='discard')
+        x_train = x_train[0: (x_train.shape[0] // self.batch_size) * self.batch_size]
+        y_train = y_train[0: (y_train.shape[0] // self.batch_size) * self.batch_size]
 
-        return None
+        return np.vstack([x_train, x_test]), np.append(y_train, y_test)
 
     def get_dataset_hashes(self):
         self.logger.info('Started generating dataset segment hashes')
@@ -323,10 +336,10 @@ class Client:
         self.get_best_model(training_results)
 
     def get_best_model(self, worker_training_results):
-        best_model_data = max(worker_training_results, key=lambda x: x['acc_val'])
+        best_model_data = max(worker_training_results, key=lambda x: x['metric_val'])
         best_model_path_on_client = os.path.join(self.worker_output_directory, 'models', 'model-{}'.format(best_model_data['model_hash']))
 
-        self.logger.info('Getting best model with accuracy of {}'.format(best_model_data['acc_val']))
+        self.logger.info('Getting best model with best metric value of {}'.format(best_model_data['metric_val']))
 
         shutil.copytree(os.path.join(best_model_data['bucket'], best_model_data['key']), best_model_path_on_client)
 
@@ -338,16 +351,7 @@ class Client:
         self.logger.info('Cleanup test segment data')
 
     def get_csv_path(self):
-        csv_path = self._cluster_request_data['ml']['dataset']['source']['features']
-        if csv_path.startswith('http'):
-            # TODO we have to download csv dataset
-            pass
-        elif csv_path.startswith('/'):
-            # path is already absolute
-            return csv_path
-        else:
-            # path is relative
-            return os.path.join(POUW_ROOT_PATH, csv_path)
+        return os.path.join(POUW_ROOT_PATH, self._cluster_request_data['ml']['dataset']['source'])
 
 
 def main():

@@ -14,4 +14,4 @@ committee response
 - Committee distributes segments between workers
 - Training starts
 - each node reports to client training results and goes back to waiting for work
-- after all nodes have completed training, client downloads model with highest accuracy
+- after all nodes have completed training, client downloads model with highest chosen metric
