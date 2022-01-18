@@ -16,9 +16,10 @@ import pandas as pd
 import redis
 import yaml
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import RobustScaler, StandardScaler
 from tensorflow import keras
 
-from pai import POUW_ROOT_PATH
+from pai import POUW_ROOT_PATH, DATASETS_DIR
 from pai.pouw.constants import OUTPUT_DIRECTORY, CLIENT_TASK_CHANNEL, NUMBER_OF_DATASET_SEGMENTS, BUCKET
 from pai.pouw.utils import ColoredConsoleHandler
 
@@ -200,10 +201,22 @@ class Client:
         return self._cluster_request_data['ml']['dataset']['labels']
 
     def get_features_scaler(self):
-        return self._cluster_request_data['ml']['dataset']['features-scaler']
+        return self.get_scaler(self._cluster_request_data['ml']['dataset']['features-scaler'])
+
 
     def get_labels_scaler(self):
-        return self._cluster_request_data['ml']['dataset']['labels-scaler']
+        return self.get_scaler(self._cluster_request_data['ml']['dataset']['labels-scaler'])
+
+    def get_scaler(self, scaler):
+        scaler_class = None
+        if scaler is not None:
+            if scaler == 'RobustScaler':
+                scaler_class = RobustScaler()
+            elif scaler == 'StandardScaler':
+                scaler_class = StandardScaler()
+            else:
+                raise Exception("Unknown scaler")
+        return scaler_class
 
     def _load_csv_dataset(self):
         file_name = self.get_csv_path()
@@ -219,9 +232,8 @@ class Client:
 
         np_features = x_all.to_numpy()
         features_scaler = self.get_features_scaler()
-        if features_scaler is not None:
-            features_scaler.fit(np_features)
-            np_features = features_scaler.transform(np_features)
+        features_scaler.fit(np_features)
+        np_features = features_scaler.transform(np_features)
 
         np_labels = y_all.to_numpy()
         labels_scaler = self.get_labels_scaler()
@@ -230,10 +242,13 @@ class Client:
             np_labels = labels_scaler.transform(np_labels)
         x_train, x_test, y_train, y_test = train_test_split(np_features, np_labels, test_size=0.3, random_state=42)
 
+        x_train = np.reshape(x_train, (-1, x_train.shape[1]))
+        y_train = np.reshape(y_train, (-1, y_train.shape[1]))
+
         x_train = x_train[0: (x_train.shape[0] // self.batch_size) * self.batch_size]
         y_train = y_train[0: (y_train.shape[0] // self.batch_size) * self.batch_size]
 
-        return np.vstack([x_train, x_test]), np.append(y_train, y_test)
+        return np.vstack([x_train, x_test]), np.vstack([y_train, y_test])
 
     def get_dataset_hashes(self):
         self.logger.info('Started generating dataset segment hashes')
@@ -351,7 +366,7 @@ class Client:
         self.logger.info('Cleanup test segment data')
 
     def get_csv_path(self):
-        return os.path.join(POUW_ROOT_PATH, self._cluster_request_data['ml']['dataset']['source'])
+        return os.path.join(POUW_ROOT_PATH, DATASETS_DIR, self._cluster_request_data['ml']['dataset']['source'])
 
 
 def main():

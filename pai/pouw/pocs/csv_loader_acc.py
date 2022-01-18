@@ -43,6 +43,8 @@ def train():
     train_main_metric = keras.metrics.SparseCategoricalAccuracy()
     val_acc_metric = keras.metrics.SparseCategoricalAccuracy()
 
+    #model.compile(optimizer=optimizer, loss=loss_fn, metrics=[train_main_metric])
+
     # Prepare the training dataset.
     batch_size = 32
     (x_train, y_train), (x_test, y_test) = load_csv('data_clean.csv', ["Filename", "docket_number", "remanded", "result text"], ['result'])
@@ -102,6 +104,8 @@ def train():
         val_acc_metric.reset_states()
         print("Validation metric value: %.4f" % (float(val_acc),))
         print("Time taken: %.2fs" % (time.time() - start_time))
+
+    model.save('model_acc')
 
 
 if __name__ == '__main__':

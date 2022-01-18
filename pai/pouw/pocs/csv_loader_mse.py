@@ -64,6 +64,8 @@ def train():
     val_dataset = tf.data.Dataset.from_tensor_slices((x_val, y_val))
     val_dataset = val_dataset.batch(batch_size)
 
+    model.compile(optimizer=optimizer, loss=loss_fn, metrics=[train_mse_metric])
+
     epochs = 30
     for epoch in range(epochs):
         print("\nStart of epoch %d" % (epoch,))
@@ -104,6 +106,7 @@ def train():
         val_acc_metric.reset_states()
         print("Validation MSE: %.4f" % (float(val_acc),))
         print("Time taken: %.2fs" % (time.time() - start_time))
+        model.save('model_mse')
 
 
 if __name__ == '__main__':
